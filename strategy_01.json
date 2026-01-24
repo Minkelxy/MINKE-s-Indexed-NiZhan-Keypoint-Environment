@@ -1,0 +1,69 @@
+{
+  "map_name": "Ni-Zhan_Map",
+  "buildings": [
+    {
+      "uid": 1006,
+      "name": "中型激光塔 (2x2)",
+      "grid_x": 24,
+      "grid_y": 58,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "uid": 1007,
+      "name": "中型激光塔 (2x2)",
+      "grid_x": 26,
+      "grid_y": 58,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "uid": 1008,
+      "name": "中型激光塔 (2x2)",
+      "grid_x": 22,
+      "grid_y": 66,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "uid": 1009,
+      "name": "中型激光塔 (2x2)",
+      "grid_x": 20,
+      "grid_y": 66,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "uid": 1010,
+      "name": "中型激光塔 (2x2)",
+      "grid_x": 20,
+      "grid_y": 70,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "uid": 1011,
+      "name": "中型激光塔 (2x2)",
+      "grid_x": 22,
+      "grid_y": 70,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "uid": 1012,
+      "name": "中型激光塔 (2x2)",
+      "grid_x": 18,
+      "grid_y": 70,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "uid": 1013,
+      "name": "中型激光塔 (2x2)",
+      "grid_x": 16,
+      "grid_y": 70,
+      "width": 2,
+      "height": 2
+    }
+  ]
+}
