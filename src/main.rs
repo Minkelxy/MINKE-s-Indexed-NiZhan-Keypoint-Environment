@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, TextureHandle, Vec2};
 use image::io::Reader as ImageReader;
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,14 @@ struct BuildingConfig {
     icon_path: String,
 }
 
+// 【新增】地图预设配置结构
+#[derive(Deserialize, Clone)]
+struct MapPreset {
+    name: String,
+    image_path: String,
+    terrain_path: String,
+}
+
 // ==========================================
 // 2. 内部逻辑结构
 // ==========================================
@@ -103,6 +112,9 @@ struct MapEditor {
     next_uid: usize,
     map_filename: String,
     building_filename: String,
+    
+    // 【新增】预设列表
+    presets: Vec<MapPreset>,
 }
 
 impl MapEditor {
@@ -118,11 +130,12 @@ impl MapEditor {
             None
         };
 
-        let mut templates = Vec::new();
+        // 1. 加载陷阱配置
+        let mut b_templates = Vec::new();
         if let Ok(config_str) = fs::read_to_string("buildings_config.json") {
             if let Ok(configs) = serde_json::from_str::<Vec<BuildingConfig>>(&config_str) {
                 for cfg in configs {
-                    templates.push(BuildingTemplate {
+                    b_templates.push(BuildingTemplate {
                         name: cfg.name,
                         width: cfg.width,
                         height: cfg.height,
@@ -132,9 +145,16 @@ impl MapEditor {
                 }
             }
         }
+        if b_templates.is_empty() {
+            b_templates.push(BuildingTemplate { name: "Default (1x1)".into(), width: 1, height: 1, color: Color32::GRAY, icon: None });
+        }
 
-        if templates.is_empty() {
-            templates.push(BuildingTemplate { name: "Default (1x1)".into(), width: 1, height: 1, color: Color32::GRAY, icon: None });
+        // 2. 【核心新增】加载地图预设配置
+        let mut map_presets = Vec::new();
+        if let Ok(pre_str) = fs::read_to_string("map_presets.json") {
+            if let Ok(presets) = serde_json::from_str::<Vec<MapPreset>>(&pre_str) {
+                map_presets = presets;
+            }
         }
 
         let mut editor = Self {
@@ -151,15 +171,46 @@ impl MapEditor {
             zoom: 1.0,
             pan: Vec2::ZERO,
             mode: EditMode::Terrain,
-            building_templates: templates,
+            building_templates: b_templates,
             selected_building_idx: 0,
             placed_buildings: Vec::new(),
             next_uid: 1000,
             map_filename: "terrain_01.json".to_string(),
             building_filename: "strategy_01.json".to_string(),
+            presets: map_presets,
         };
         editor.layers_data.insert(0, vec![vec![-1; 40]; 40]);
         editor
+    }
+
+    // 【核心新增】一键应用预设逻辑
+    fn apply_preset(&mut self, ctx: &egui::Context, preset: &MapPreset) {
+        // A. 加载底图
+        if let Ok(img_reader) = ImageReader::open(&preset.image_path) {
+            if let Ok(img) = img_reader.decode() {
+                let size = [img.width() as _, img.height() as _];
+                let color_image = egui::ColorImage::from_rgba_unmultiplied(size, img.to_rgba8().as_flat_samples().as_slice());
+                self.texture = Some(ctx.load_texture(&preset.image_path, color_image, Default::default()));
+            }
+        }
+        // B. 加载地形数据
+        if let Ok(content) = fs::read_to_string(&preset.terrain_path) {
+            if let Ok(data) = serde_json::from_str::<MapTerrainExport>(&content) {
+                self.grid_size = data.meta.grid_pixel_size;
+                self.offset_x = data.meta.offset_x;
+                self.offset_y = data.meta.offset_y;
+                self.layers_data.clear();
+                for layer in data.layers {
+                    self.grid_rows = layer.elevation_grid.len();
+                    self.grid_cols = layer.elevation_grid[0].len();
+                    self.layers_data.insert(layer.major_z, layer.elevation_grid);
+                }
+                self.map_filename = preset.terrain_path.clone();
+            }
+        }
+        // C. 视角复位
+        self.zoom = 1.0;
+        self.pan = Vec2::ZERO;
     }
 
     fn resize_grids(&mut self) {
@@ -217,7 +268,7 @@ impl MapEditor {
 
     fn export_terrain(&self) {
         let meta = MapMeta { grid_pixel_size: self.grid_size, offset_x: self.offset_x, offset_y: self.offset_y };
-        let mut layers: Vec<LayerData> = self.layers_data.iter().map(|(&z, grid)| LayerData { major_z: z, name: format!("Major_Layer_{}", z), elevation_grid: grid.clone() }).collect();
+        let mut layers: Vec<LayerData> = self.layers_data.iter().map(|(&z, grid)| LayerData { major_z: z, name: format!("Layer_{}", z), elevation_grid: grid.clone() }).collect();
         layers.sort_by_key(|l| l.major_z);
         let export_data = MapTerrainExport { map_name: "Ni-Zhan_Map".into(), meta, layers };
         if let Ok(json) = serde_json::to_string_pretty(&export_data) { let _ = fs::write(&self.map_filename, json); }
@@ -262,7 +313,20 @@ impl eframe::App for MapEditor {
         egui::SidePanel::left("control").min_width(320.0).show(ctx, |ui| {
             ui.heading("MINKE 塔防策略编辑器");
             ui.add_space(5.0);
-            if ui.button("载入底图").clicked() { self.pick_and_load_image(ctx); }
+
+            // 【核心新增】快速加载关卡预设区
+            ui.group(|ui| {
+                ui.label("🚀 快速加载关卡预设:");
+                if self.presets.is_empty() {
+                    ui.weak("未发现 map_presets.json");
+                }
+                for preset in self.presets.clone() {
+                    if ui.button(format!("载入: {}", preset.name)).clicked() {
+                        self.apply_preset(ctx, &preset);
+                    }
+                }
+            });
+
             ui.separator();
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.mode, EditMode::Terrain, "地形涂抹");
@@ -313,6 +377,9 @@ impl eframe::App for MapEditor {
 
             ui.add_space(10.0);
             ui.group(|ui| {
+                ui.label("直接载入底图:");
+                if ui.button("载入自定义底图").clicked() { self.pick_and_load_image(ctx); }
+                ui.separator();
                 ui.label("地形文件 (.json):");
                 ui.horizontal(|ui| { ui.text_edit_singleline(&mut self.map_filename); if ui.button("导出").clicked() { self.export_terrain(); } if ui.button("导入").clicked() { self.import_terrain(); } });
                 ui.add_space(5.0);
@@ -342,7 +409,6 @@ impl eframe::App for MapEditor {
                 painter.image(tex.id(), Rect::from_min_size(panel_rect.min + self.pan, tex.size_vec2() * self.zoom), Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
             }
 
-            // 核心交互：已修复溢出问题
             if let Some(pos) = input.pointer.hover_pos() {
                 let rel = pos - origin; 
                 let c = (rel.x / z_grid).floor() as i32;
@@ -357,13 +423,10 @@ impl eframe::App for MapEditor {
                             let grid = self.layers_data.get_mut(&self.current_major_z).unwrap();
                             let val = if is_p { self.current_brush } else { -1 };
                             let rad = self.brush_radius;
-                            
-                            // 【修复核心】计算安全的 usize 边界
                             let r_start = (r - rad).max(0) as usize;
                             let r_end = (r + rad).min(self.grid_rows as i32 - 1) as usize;
                             let c_start = (c - rad).max(0) as usize;
                             let c_end = (c + rad).min(self.grid_cols as i32 - 1) as usize;
-
                             for dr in r_start..=r_end {
                                 for dc in c_start..=c_end {
                                     grid[dr][dc] = val;
@@ -393,7 +456,7 @@ impl eframe::App for MapEditor {
                 }
             }
 
-            // 渲染建筑 (图标/色块)
+            // 渲染建筑
             for b in &self.placed_buildings {
                 let rect = Rect::from_min_size(origin + Vec2::new(b.grid_x as f32 * z_grid, b.grid_y as f32 * z_grid), Vec2::new(b.width as f32 * z_grid, b.height as f32 * z_grid));
                 let temp = self.building_templates.iter().find(|t| t.name == b.template_name);

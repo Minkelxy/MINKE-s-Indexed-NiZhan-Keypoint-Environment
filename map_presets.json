@@ -1,12 +1,12 @@
 [
   {
-    "name": "新手关卡 - 十字路口",
-    "image_path": "maps/tutorial_bg.png",
-    "terrain_path": "terrain_01.json"
+    "name": "空间站",
+    "image_path": "maps/空间站.png",
+    "terrain_path": "maps/空间站.json"
   },
   {
-    "name": "星际矿区 - 蛇形峡谷",
-    "image_path": "maps/canyon_bg.png",
-    "terrain_path": "terrain_02.json"
+    "name": "20号星港",
+    "image_path": "maps/20号星港.png",
+    "terrain_path": "maps/20号星港.json"
   }
 ]
