@@ -31,6 +31,16 @@ struct BuildingExport {
     grid_y: usize,
     width: usize,
     height: usize,
+    wave_num: i32,
+    is_late: bool,
+}
+
+// 【新增】升级事件结构
+#[derive(Serialize, Deserialize, Clone)]
+struct UpgradeEvent {
+    building_name: String, // 对哪种塔进行升级
+    wave_num: i32,
+    is_late: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -44,6 +54,9 @@ struct MapTerrainExport {
 struct MapBuildingsExport {
     map_name: String,
     buildings: Vec<BuildingExport>,
+    // 【新增】升级列表 (加上 default 确保读取旧存档不报错)
+    #[serde(default)]
+    upgrades: Vec<UpgradeEvent>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -55,7 +68,6 @@ struct BuildingConfig {
     icon_path: String,
 }
 
-// 【新增】地图预设配置结构
 #[derive(Deserialize, Clone)]
 struct MapPreset {
     name: String,
@@ -84,6 +96,8 @@ struct PlacedBuilding {
     width: usize,
     height: usize,
     color: Color32,
+    wave_num: i32,
+    is_late: bool,
 }
 
 #[derive(PartialEq)]
@@ -107,14 +121,22 @@ struct MapEditor {
     pan: Vec2,
     mode: EditMode,
     building_templates: Vec<BuildingTemplate>,
-    selected_building_idx: usize,
+    
+    selected_building_idx: usize, // 用于放置建筑的选中项
+    
+    // 【新增】专门用于升级面板的选中项，与放置分离
+    selected_upgrade_target_idx: usize, 
+
     placed_buildings: Vec<PlacedBuilding>,
     next_uid: usize,
     map_filename: String,
     building_filename: String,
-    
-    // 【新增】预设列表
     presets: Vec<MapPreset>,
+    current_wave_num: i32,
+    current_is_late: bool,
+
+    // 【新增】内存中的升级事件列表
+    upgrade_events: Vec<UpgradeEvent>,
 }
 
 impl MapEditor {
@@ -130,7 +152,6 @@ impl MapEditor {
             None
         };
 
-        // 1. 加载陷阱配置
         let mut b_templates = Vec::new();
         if let Ok(config_str) = fs::read_to_string("buildings_config.json") {
             if let Ok(configs) = serde_json::from_str::<Vec<BuildingConfig>>(&config_str) {
@@ -149,7 +170,6 @@ impl MapEditor {
             b_templates.push(BuildingTemplate { name: "Default (1x1)".into(), width: 1, height: 1, color: Color32::GRAY, icon: None });
         }
 
-        // 2. 【核心新增】加载地图预设配置
         let mut map_presets = Vec::new();
         if let Ok(pre_str) = fs::read_to_string("map_presets.json") {
             if let Ok(presets) = serde_json::from_str::<Vec<MapPreset>>(&pre_str) {
@@ -173,19 +193,21 @@ impl MapEditor {
             mode: EditMode::Terrain,
             building_templates: b_templates,
             selected_building_idx: 0,
+            selected_upgrade_target_idx: 0, // 初始化
             placed_buildings: Vec::new(),
             next_uid: 1000,
             map_filename: "terrain_01.json".to_string(),
             building_filename: "strategy_01.json".to_string(),
             presets: map_presets,
+            current_wave_num: 1,
+            current_is_late: false,
+            upgrade_events: Vec::new(),
         };
         editor.layers_data.insert(0, vec![vec![-1; 40]; 40]);
         editor
     }
 
-    // 【核心新增】一键应用预设逻辑
     fn apply_preset(&mut self, ctx: &egui::Context, preset: &MapPreset) {
-        // A. 加载底图
         if let Ok(img_reader) = ImageReader::open(&preset.image_path) {
             if let Ok(img) = img_reader.decode() {
                 let size = [img.width() as _, img.height() as _];
@@ -193,7 +215,6 @@ impl MapEditor {
                 self.texture = Some(ctx.load_texture(&preset.image_path, color_image, Default::default()));
             }
         }
-        // B. 加载地形数据
         if let Ok(content) = fs::read_to_string(&preset.terrain_path) {
             if let Ok(data) = serde_json::from_str::<MapTerrainExport>(&content) {
                 self.grid_size = data.meta.grid_pixel_size;
@@ -208,7 +229,6 @@ impl MapEditor {
                 self.map_filename = preset.terrain_path.clone();
             }
         }
-        // C. 视角复位
         self.zoom = 1.0;
         self.pan = Vec2::ZERO;
     }
@@ -258,9 +278,21 @@ impl MapEditor {
                 if let Ok(data) = serde_json::from_str::<MapBuildingsExport>(&content) {
                     self.placed_buildings = data.buildings.iter().map(|b| {
                         let color = self.building_templates.iter().find(|t| t.name == b.name).map(|t| t.color).unwrap_or(Color32::GRAY);
-                        PlacedBuilding { uid: b.uid, template_name: b.name.clone(), grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height, color }
+                        PlacedBuilding { 
+                            uid: b.uid, 
+                            template_name: b.name.clone(), 
+                            grid_x: b.grid_x, 
+                            grid_y: b.grid_y, 
+                            width: b.width, 
+                            height: b.height, 
+                            color,
+                            wave_num: b.wave_num,
+                            is_late: b.is_late
+                        }
                     }).collect();
                     self.next_uid = self.placed_buildings.iter().map(|b| b.uid).max().unwrap_or(1000) + 1;
+                    // 【新增】导入升级列表
+                    self.upgrade_events = data.upgrades;
                 }
             }
         }
@@ -275,8 +307,24 @@ impl MapEditor {
     }
 
     fn export_buildings(&self) {
-        let b_exp: Vec<BuildingExport> = self.placed_buildings.iter().map(|b| BuildingExport { uid: b.uid, name: b.template_name.clone(), grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height }).collect();
-        let export_data = MapBuildingsExport { map_name: "Ni-Zhan_Map".into(), buildings: b_exp };
+        let b_exp: Vec<BuildingExport> = self.placed_buildings.iter().map(|b| BuildingExport { 
+            uid: b.uid, 
+            name: b.template_name.clone(), 
+            grid_x: b.grid_x, 
+            grid_y: b.grid_y, 
+            width: b.width, 
+            height: b.height,
+            wave_num: b.wave_num,
+            is_late: b.is_late 
+        }).collect();
+        
+        let export_data = MapBuildingsExport { 
+            map_name: "Ni-Zhan_Map".into(), 
+            buildings: b_exp,
+            // 【新增】导出升级列表
+            upgrades: self.upgrade_events.clone(),
+        };
+        
         if let Ok(json) = serde_json::to_string_pretty(&export_data) { let _ = fs::write(&self.building_filename, json); }
     }
 
@@ -310,20 +358,21 @@ impl MapEditor {
 
 impl eframe::App for MapEditor {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::left("control").min_width(320.0).show(ctx, |ui| {
+        egui::SidePanel::left("control").min_width(340.0).show(ctx, |ui| {
             ui.heading("MINKE 塔防策略编辑器");
             ui.add_space(5.0);
 
-            // 【核心新增】快速加载关卡预设区
             ui.group(|ui| {
                 ui.label("🚀 快速加载关卡预设:");
                 if self.presets.is_empty() {
                     ui.weak("未发现 map_presets.json");
                 }
-                for preset in self.presets.clone() {
-                    if ui.button(format!("载入: {}", preset.name)).clicked() {
-                        self.apply_preset(ctx, &preset);
-                    }
+                for (i, preset) in self.presets.clone().iter().enumerate() {
+                    ui.push_id(i, |ui| {
+                        if ui.button(format!("载入: {}", preset.name)).clicked() {
+                            self.apply_preset(ctx, preset);
+                        }
+                    });
                 }
             });
 
@@ -349,18 +398,98 @@ impl eframe::App for MapEditor {
                     });
                 },
                 EditMode::Building => {
+                    // 全局波次设置
                     ui.group(|ui| {
-                        for (i, t) in self.building_templates.iter().enumerate() {
-                            ui.horizontal(|ui| {
-                                ui.radio_value(&mut self.selected_building_idx, i, "");
-                                let (rect, _) = ui.allocate_exact_size(Vec2::new(20.0, 20.0), Sense::hover());
-                                if let Some(icon) = &t.icon { ui.painter().image(icon.id(), rect, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE); }
-                                else { ui.painter().rect_filled(rect, 2.0, t.color); }
-                                ui.label(format!("{} ({}x{})", t.name, t.width, t.height));
-                            });
-                        }
+                        ui.label("⚙️ 全局波次/时间设置:");
+                        ui.horizontal(|ui| {
+                            ui.label("当前波次:");
+                            ui.add(egui::DragValue::new(&mut self.current_wave_num).speed(1).clamp_range(1..=100));
+                        });
+                        ui.horizontal(|ui| {
+                            ui.checkbox(&mut self.current_is_late, "本波次后期 (is_late)");
+                        });
                     });
-                    if ui.button("清除所有建筑").clicked() { self.placed_buildings.clear(); }
+                    ui.add_space(5.0);
+
+                    // 【重构方案】独立的升级事件管理面板
+                    // 使用 CollapsingHeader 让界面更整洁
+                    ui.push_id("upgrade_panel", |ui| {
+                        ui.collapsing("⬆️ 升级/科技事件管理", |ui| {
+                            ui.add_space(4.0);
+                            
+                            // 1. 独立的选择器，不影响建筑放置
+                            ui.horizontal(|ui| {
+                                ui.label("目标类型:");
+                                egui::ComboBox::from_id_source("upgrade_target_selector")
+                                    .selected_text(&self.building_templates[self.selected_upgrade_target_idx].name)
+                                    .show_ui(ui, |ui| {
+                                        for (i, t) in self.building_templates.iter().enumerate() {
+                                            ui.selectable_value(&mut self.selected_upgrade_target_idx, i, &t.name);
+                                        }
+                                    });
+                            });
+
+                            // 2. 添加按钮
+                            let target_name = self.building_templates[self.selected_upgrade_target_idx].name.clone();
+                            if ui.button(format!("➕ 添加记录: W{} 升级 {}", self.current_wave_num, target_name)).clicked() {
+                                self.upgrade_events.push(UpgradeEvent {
+                                    building_name: target_name,
+                                    wave_num: self.current_wave_num,
+                                    is_late: self.current_is_late,
+                                });
+                            }
+
+                            ui.separator();
+                            
+                            // 3. 安全的列表显示 (使用 push_id 防止 ID 冲突)
+                            if self.upgrade_events.is_empty() {
+                                ui.weak("暂无升级记录");
+                            } else {
+                                ui.label("已添加事件:");
+                                let mut delete_idx = None;
+                                egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
+                                    for (i, ev) in self.upgrade_events.iter().enumerate() {
+                                        // 【核心修复】为每一行分配独立 ID 空间
+                                        ui.push_id(i, |ui| {
+                                            ui.horizontal(|ui| {
+                                                if ui.button("🗑️").on_hover_text("删除").clicked() {
+                                                    delete_idx = Some(i);
+                                                }
+                                                ui.label(format!("W{}: {}", ev.wave_num, ev.building_name));
+                                                if ev.is_late { ui.weak("(Late)"); }
+                                            });
+                                        });
+                                    }
+                                });
+                                if let Some(idx) = delete_idx {
+                                    self.upgrade_events.remove(idx);
+                                }
+                            }
+                        });
+                    });
+
+                    ui.add_space(5.0);
+
+                    // 建筑放置列表 (保持原样)
+                    ui.group(|ui| {
+                        ui.label("🏗️ 放置建筑到地图:");
+                        egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                            for (i, t) in self.building_templates.iter().enumerate() {
+                                ui.horizontal(|ui| {
+                                    ui.radio_value(&mut self.selected_building_idx, i, "");
+                                    let (rect, _) = ui.allocate_exact_size(Vec2::new(20.0, 20.0), Sense::hover());
+                                    if let Some(icon) = &t.icon { ui.painter().image(icon.id(), rect, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE); }
+                                    else { ui.painter().rect_filled(rect, 2.0, t.color); }
+                                    ui.label(format!("{} ({}x{})", t.name, t.width, t.height));
+                                });
+                            }
+                        });
+                    });
+                    
+                    if ui.button("⚠️ 清除所有数据").clicked() { 
+                        self.placed_buildings.clear(); 
+                        self.upgrade_events.clear();
+                    }
                 }
             }
 
@@ -409,6 +538,8 @@ impl eframe::App for MapEditor {
                 painter.image(tex.id(), Rect::from_min_size(panel_rect.min + self.pan, tex.size_vec2() * self.zoom), Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
             }
 
+            let mut hovered_building_info: Option<(String, i32, bool)> = None;
+
             if let Some(pos) = input.pointer.hover_pos() {
                 let rel = pos - origin; 
                 let c = (rel.x / z_grid).floor() as i32;
@@ -437,7 +568,17 @@ impl eframe::App for MapEditor {
                         if response.clicked_by(egui::PointerButton::Primary) {
                             let t = &self.building_templates[self.selected_building_idx];
                             if self.can_place_building(r_idx, c_idx, t.width, t.height) {
-                                self.placed_buildings.push(PlacedBuilding { uid: self.next_uid, template_name: t.name.clone(), grid_x: c_idx, grid_y: r_idx, width: t.width, height: t.height, color: t.color });
+                                self.placed_buildings.push(PlacedBuilding { 
+                                    uid: self.next_uid, 
+                                    template_name: t.name.clone(), 
+                                    grid_x: c_idx, 
+                                    grid_y: r_idx, 
+                                    width: t.width, 
+                                    height: t.height, 
+                                    color: t.color,
+                                    wave_num: self.current_wave_num,
+                                    is_late: self.current_is_late
+                                });
                                 self.next_uid += 1;
                             }
                         } else if response.clicked_by(egui::PointerButton::Secondary) {
@@ -465,6 +606,17 @@ impl eframe::App for MapEditor {
                     else { painter.rect_filled(rect, 4.0, b.color); }
                 }
                 painter.rect_stroke(rect, 1.5, Stroke::new(1.5, Color32::from_black_alpha(180)));
+                
+                if self.zoom > 0.5 {
+                    let text = format!("W{}", b.wave_num);
+                    painter.text(rect.center(), egui::Align2::CENTER_CENTER, text, egui::FontId::proportional(14.0 * self.zoom), Color32::WHITE);
+                }
+
+                if let Some(pos) = input.pointer.hover_pos() {
+                    if rect.contains(pos) {
+                        hovered_building_info = Some((b.template_name.clone(), b.wave_num, b.is_late));
+                    }
+                }
             }
 
             // HUD 及幽灵预览
@@ -473,9 +625,15 @@ impl eframe::App for MapEditor {
                 let py = (pos.y - panel_rect.min.y - self.pan.y) / self.zoom;
                 let c = ((pos.x - origin.x) / z_grid).floor() as i32;
                 let r = ((pos.y - origin.y) / z_grid).floor() as i32;
-                let hud_rect = Rect::from_min_size(panel_rect.min + Vec2::new(10., 10.), Vec2::new(200., 40.));
+                let hud_rect = Rect::from_min_size(panel_rect.min + Vec2::new(10., 10.), Vec2::new(200., 60.));
                 painter.rect_filled(hud_rect, 4.0, Color32::from_black_alpha(150));
-                painter.text(hud_rect.min + Vec2::new(5., 5.), egui::Align2::LEFT_TOP, format!("Pixel: {:.1}, {:.1}\nGrid: [{}, {}]", px, py, r, c), egui::FontId::proportional(12.0), Color32::WHITE);
+                
+                let mut info = format!("Pixel: {:.1}, {:.1}\nGrid: [{}, {}]", px, py, r, c);
+                if let Some((name, w, l)) = hovered_building_info {
+                    info.push_str(&format!("\n🏠 {} (Wave: {}{})", name, w, if l { " Late" } else { "" }));
+                }
+
+                painter.text(hud_rect.min + Vec2::new(5., 5.), egui::Align2::LEFT_TOP, info, egui::FontId::proportional(12.0), Color32::WHITE);
 
                 if self.mode == EditMode::Building && r >= 0 && c >= 0 && (r as usize) < self.grid_rows && (c as usize) < self.grid_cols {
                     let t = &self.building_templates[self.selected_building_idx];

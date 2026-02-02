@@ -1,0 +1,62 @@
+map_name = "Ni-Zhan_Map"
+
+[[placements]]
+uid = 1000
+name = "小型弹板陷阱"
+grid_x = 17
+grid_y = 24
+width = 4
+height = 4
+wave_num = 1
+is_late = false
+
+[[placements]]
+uid = 1001
+name = "小型弹板陷阱"
+grid_x = 18
+grid_y = 30
+width = 4
+height = 4
+wave_num = 1
+is_late = false
+
+[[placements]]
+uid = 1002
+name = "小型弹板陷阱"
+grid_x = 34
+grid_y = 20
+width = 4
+height = 4
+wave_num = 1
+is_late = false
+
+[[placements]]
+uid = 1003
+name = "小型弹板陷阱"
+grid_x = 44
+grid_y = 22
+width = 4
+height = 4
+wave_num = 1
+is_late = false
+
+[[upgrades]]
+target_name = "小型弹板陷阱"
+level = 2
+cost = 4000
+wave_num = 1
+is_late = false
+
+[[upgrades]]
+target_name = "小型弹板陷阱"
+level = 3
+cost = 7000
+wave_num = 1
+is_late = false
+
+[[upgrades]]
+target_name = "小型弹板陷阱"
+level = 4
+cost = 10000
+wave_num = 1
+is_late = false
