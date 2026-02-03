@@ -102,4 +102,9 @@ pub struct PlacedBuilding {
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub enum EditMode { Terrain, Building, Demolish }
+pub enum EditMode { 
+    Terrain, 
+    Building, 
+    Upgrade,  // <--- 补上这个！
+    Demolish 
+}

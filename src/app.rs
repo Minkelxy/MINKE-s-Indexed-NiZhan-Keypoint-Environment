@@ -212,22 +212,26 @@ impl eframe::App for MapEditor {
             });
 
             ui.separator();
-            ui.columns(3, |cols| {
+            
+            // 🔥 4列布局：地形、布局、升级、拆除
+            ui.columns(4, |cols| {
                 cols[0].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Terrain, "地形"); });
                 cols[1].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Building, "布局"); });
-                cols[2].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Demolish, "拆除"); });
+                cols[2].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Upgrade, "升级"); });
+                cols[3].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Demolish, "拆除"); });
             });
 
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
                 ui.label("时间轴控制:");
                 ui.horizontal(|ui| {
-                    ui.label("波次:");
+                    ui.label("当前波次:");
                     ui.add(egui::DragValue::new(&mut self.current_wave_num).speed(1).clamp_range(1..=100));
                     ui.checkbox(&mut self.current_is_late, "后期");
                 });
             });
 
+            // --- 动态面板区域 ---
             if self.mode == EditMode::Terrain {
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
@@ -242,27 +246,12 @@ impl eframe::App for MapEditor {
                     }
                     ui.add(egui::Slider::new(&mut self.brush_radius, 0..=10).text("笔刷半径"));
                 });
+
             } else if self.mode == EditMode::Building {
-                ui.push_id("upgrade_panel", |ui| {
-                    ui.collapsing("升级任务序列", |ui| {
-                        ui.vertical_centered_justified(|ui| {
-                            egui::ComboBox::from_label("目标塔")
-                                .selected_text(&self.building_templates[self.selected_upgrade_target_idx].name)
-                                .show_ui(ui, |ui| {
-                                    for (i, t) in self.building_templates.iter().enumerate() {
-                                        ui.selectable_value(&mut self.selected_upgrade_target_idx, i, &t.name);
-                                    }
-                                });
-                            if ui.button("[+] 添加升级记录").clicked() {
-                                self.upgrade_events.push(UpgradeEvent { building_name: self.building_templates[self.selected_upgrade_target_idx].name.clone(), wave_num: self.current_wave_num, is_late: self.current_is_late });
-                            }
-                        });
-                    });
-                });
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
-                    ui.label("待放建筑物:");
-                    egui::ScrollArea::vertical().max_height(240.0).show(ui, |ui| {
+                    ui.label("选择建筑物:");
+                    egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
                         ui.vertical_centered_justified(|ui| {
                             for (i, t) in self.building_templates.iter().enumerate() {
                                 ui.horizontal(|ui| {
@@ -279,12 +268,57 @@ impl eframe::App for MapEditor {
                         });
                     });
                 });
-            } else {
+
+            } else if self.mode == EditMode::Upgrade {
+                // 🔥 升级模式专属面板
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.label("添加全局升级:");
+                    ui.vertical_centered_justified(|ui| {
+                        egui::ComboBox::from_label("目标塔")
+                            .selected_text(&self.building_templates[self.selected_upgrade_target_idx].name)
+                            .show_ui(ui, |ui| {
+                                for (i, t) in self.building_templates.iter().enumerate() {
+                                    ui.selectable_value(&mut self.selected_upgrade_target_idx, i, &t.name);
+                                }
+                            });
+                        if ui.button("[+] 添加升级指令").clicked() {
+                            self.upgrade_events.push(UpgradeEvent { 
+                                building_name: self.building_templates[self.selected_upgrade_target_idx].name.clone(), 
+                                wave_num: self.current_wave_num, 
+                                is_late: self.current_is_late 
+                            });
+                        }
+                    });
+                });
+
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.label("已配置的升级序列:");
+                    let mut delete_idx = None;
+                    egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                        if self.upgrade_events.is_empty() {
+                            ui.label("暂无升级记录");
+                        }
+                        for (i, ev) in self.upgrade_events.iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                if ui.button("[X]").clicked() { delete_idx = Some(i); }
+                                ui.label(format!("W{}{}: 升级 {}", ev.wave_num, if ev.is_late{"L"} else {""}, ev.building_name));
+                            });
+                        }
+                    });
+                    if let Some(idx) = delete_idx { self.upgrade_events.remove(idx); }
+                });
+
+            } else { // Demolish Mode
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("拆除任务预览:");
                     let mut delete_idx = None;
                     egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                        if self.demolish_events.is_empty() {
+                            ui.label("暂无拆除记录");
+                        }
                         for (i, ev) in self.demolish_events.iter().enumerate() {
                             ui.horizontal(|ui| {
                                 if ui.button("[X]").clicked() { delete_idx = Some(i); }
@@ -356,6 +390,14 @@ impl eframe::App for MapEditor {
             }
 
             let t_current = get_time_value(self.current_wave_num, self.current_is_late);
+            
+            // 🔥 确定是否需要高亮某种塔（升级模式用）
+            let highlight_target_name = if self.mode == EditMode::Upgrade {
+                Some(self.building_templates[self.selected_upgrade_target_idx].name.clone())
+            } else {
+                None
+            };
+
             for b in &self.placed_buildings {
                 let t_create = get_time_value(b.wave_num, b.is_late);
                 let t_demolish = self.get_building_demolish_time(b.uid);
@@ -368,11 +410,20 @@ impl eframe::App for MapEditor {
                     if let Some(icon) = &t.icon { painter.image(icon.id(), rect, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), tint); }
                     else { painter.rect_filled(rect, 4.0, Color32::from_rgba_unmultiplied(b.color.r(), b.color.g(), b.color.b(), (b.color.a() as f32 * alpha_mult) as u8)); }
                 }
+                
                 if alpha_mult > 0.1 {
                     let stroke_alpha = (180.0 * alpha_mult) as u8;
                     painter.rect_stroke(rect, 1.5, Stroke::new(1.5, Color32::from_black_alpha(stroke_alpha)));
                     painter.text(rect.min + Vec2::new(2.0, 2.0), Align2::LEFT_TOP, format!("W{}{}", b.wave_num, if b.is_late { "L" } else { "" }), FontId::proportional(11.0 * self.zoom.max(1.0)), Color32::from_white_alpha(stroke_alpha));
                 }
+
+                // 🔥 高亮显示（升级模式）
+                if let Some(target) = &highlight_target_name {
+                    if &b.template_name == target && alpha_mult > 0.5 {
+                        painter.rect_stroke(rect.expand(2.0), 0.0, Stroke::new(2.5, Color32::GREEN));
+                    }
+                }
+
                 if t_demolish != i32::MAX && alpha_mult > 0.1 {
                     painter.line_segment([rect.min, rect.max], Stroke::new(2.0, Color32::from_rgba_unmultiplied(255, 0, 0, (200.0 * alpha_mult) as u8)));
                     painter.line_segment([rect.left_bottom(), rect.right_top()], Stroke::new(2.0, Color32::from_rgba_unmultiplied(255, 0, 0, (200.0 * alpha_mult) as u8)));
