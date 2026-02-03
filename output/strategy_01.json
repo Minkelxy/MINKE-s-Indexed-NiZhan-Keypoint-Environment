@@ -1,0 +1,168 @@
+{
+  "map_name": "Ni-Zhan_Map",
+  "buildings": [
+    {
+      "uid": 1000,
+      "name": "小型弹板陷阱",
+      "grid_x": 28,
+      "grid_y": 0,
+      "width": 4,
+      "height": 4,
+      "wave_num": 1,
+      "is_late": false
+    },
+    {
+      "uid": 1001,
+      "name": "小型弹板陷阱",
+      "grid_x": 32,
+      "grid_y": 0,
+      "width": 4,
+      "height": 4,
+      "wave_num": 1,
+      "is_late": false
+    },
+    {
+      "uid": 1002,
+      "name": "小型弹板陷阱",
+      "grid_x": 28,
+      "grid_y": 4,
+      "width": 4,
+      "height": 4,
+      "wave_num": 3,
+      "is_late": false
+    },
+    {
+      "uid": 1003,
+      "name": "小型弹板陷阱",
+      "grid_x": 32,
+      "grid_y": 4,
+      "width": 4,
+      "height": 4,
+      "wave_num": 3,
+      "is_late": false
+    },
+    {
+      "uid": 1004,
+      "name": "小型弹板陷阱",
+      "grid_x": 28,
+      "grid_y": 8,
+      "width": 4,
+      "height": 4,
+      "wave_num": 3,
+      "is_late": false
+    },
+    {
+      "uid": 1005,
+      "name": "小型弹板陷阱",
+      "grid_x": 32,
+      "grid_y": 8,
+      "width": 4,
+      "height": 4,
+      "wave_num": 3,
+      "is_late": false
+    },
+    {
+      "uid": 1006,
+      "name": "小型弹板陷阱",
+      "grid_x": 28,
+      "grid_y": 6,
+      "width": 4,
+      "height": 4,
+      "wave_num": 4,
+      "is_late": false
+    },
+    {
+      "uid": 1007,
+      "name": "小型弹板陷阱",
+      "grid_x": 32,
+      "grid_y": 6,
+      "width": 4,
+      "height": 4,
+      "wave_num": 4,
+      "is_late": false
+    },
+    {
+      "uid": 1008,
+      "name": "小型弹板陷阱",
+      "grid_x": 28,
+      "grid_y": 10,
+      "width": 4,
+      "height": 4,
+      "wave_num": 5,
+      "is_late": false
+    },
+    {
+      "uid": 1009,
+      "name": "小型弹板陷阱",
+      "grid_x": 32,
+      "grid_y": 10,
+      "width": 4,
+      "height": 4,
+      "wave_num": 5,
+      "is_late": false
+    }
+  ],
+  "upgrades": [],
+  "demolishes": [
+    {
+      "uid": 1000,
+      "name": "小型弹板陷阱",
+      "grid_x": 28,
+      "grid_y": 0,
+      "width": 4,
+      "height": 4,
+      "wave_num": 2,
+      "is_late": false
+    },
+    {
+      "uid": 1001,
+      "name": "小型弹板陷阱",
+      "grid_x": 32,
+      "grid_y": 0,
+      "width": 4,
+      "height": 4,
+      "wave_num": 2,
+      "is_late": false
+    },
+    {
+      "uid": 1002,
+      "name": "小型弹板陷阱",
+      "grid_x": 28,
+      "grid_y": 4,
+      "width": 4,
+      "height": 4,
+      "wave_num": 4,
+      "is_late": false
+    },
+    {
+      "uid": 1003,
+      "name": "小型弹板陷阱",
+      "grid_x": 32,
+      "grid_y": 4,
+      "width": 4,
+      "height": 4,
+      "wave_num": 4,
+      "is_late": false
+    },
+    {
+      "uid": 1005,
+      "name": "小型弹板陷阱",
+      "grid_x": 32,
+      "grid_y": 8,
+      "width": 4,
+      "height": 4,
+      "wave_num": 4,
+      "is_late": false
+    },
+    {
+      "uid": 1004,
+      "name": "小型弹板陷阱",
+      "grid_x": 28,
+      "grid_y": 8,
+      "width": 4,
+      "height": 4,
+      "wave_num": 4,
+      "is_late": false
+    }
+  ]
+}
