@@ -13,6 +13,7 @@ pub struct MapEditor {
     pub(crate) grid_size: f32,
     pub(crate) offset_x: f32,
     pub(crate) offset_y: f32,
+    pub(crate) map_bottom: f32, // 🔥 新增：存储底图高度
     pub(crate) grid_rows: usize,
     pub(crate) grid_cols: usize,
     pub(crate) current_major_z: i32,
@@ -72,7 +73,8 @@ impl MapEditor {
         }
 
         let mut editor = Self {
-            texture: None, grid_size: 32.0, offset_x: 0.0, offset_y: 0.0,
+            texture: None, grid_size: 32.0, offset_x: 0.0, offset_y: 0.0, 
+            map_bottom: 1080.0, // 🔥 初始化默认高度
             grid_rows: 40, grid_cols: 40, current_major_z: 0,
             layers_data: HashMap::new(), current_brush: 0, brush_radius: 0,
             zoom: 1.0, pan: Vec2::ZERO, mode: EditMode::Terrain,
@@ -94,11 +96,13 @@ impl MapEditor {
                 let size = [img.width() as _, img.height() as _];
                 let color_image = egui::ColorImage::from_rgba_unmultiplied(size, img.to_rgba8().as_flat_samples().as_slice());
                 self.texture = Some(ctx.load_texture(&image_p, color_image, Default::default()));
+                self.map_bottom = size[1] as f32; // 🔥 自动获取预设图片高度
             }
         }
         if let Ok(content) = fs::read_to_string(&terrain_p) {
             if let Ok(data) = serde_json::from_str::<MapTerrainExport>(&content) {
                 self.grid_size = data.meta.grid_pixel_size; self.offset_x = data.meta.offset_x; self.offset_y = data.meta.offset_y;
+                if data.meta.bottom > 0.0 { self.map_bottom = data.meta.bottom; } // 🔥 如果 JSON 里有 bottom 则覆盖
                 self.layers_data.clear();
                 for layer in data.layers {
                     self.grid_rows = layer.elevation_grid.len(); self.grid_cols = layer.elevation_grid[0].len();
@@ -142,6 +146,7 @@ impl MapEditor {
                     let size = [img.width() as _, img.height() as _];
                     let color_image = egui::ColorImage::from_rgba_unmultiplied(size, img.to_rgba8().as_flat_samples().as_slice());
                     self.texture = Some(ctx.load_texture(path.to_string_lossy(), color_image, Default::default()));
+                    self.map_bottom = size[1] as f32; // 🔥 自动更新高度
                 }
             }
         }
@@ -152,6 +157,7 @@ impl MapEditor {
             if let Ok(content) = fs::read_to_string(path) {
                 if let Ok(data) = serde_json::from_str::<MapTerrainExport>(&content) {
                     self.grid_size = data.meta.grid_pixel_size; self.offset_x = data.meta.offset_x; self.offset_y = data.meta.offset_y;
+                    if data.meta.bottom > 0.0 { self.map_bottom = data.meta.bottom; } // 🔥 读取 bottom
                     self.layers_data.clear();
                     for layer in data.layers {
                         self.grid_rows = layer.elevation_grid.len(); self.grid_cols = layer.elevation_grid[0].len();
@@ -181,7 +187,8 @@ impl MapEditor {
     fn export_terrain(&self) {
         let _ = fs::create_dir_all("output");
         let out = PathBuf::from("output").join(&self.map_filename);
-        let meta = MapMeta { grid_pixel_size: self.grid_size, offset_x: self.offset_x, offset_y: self.offset_y };
+        // 🔥 将 self.map_bottom 写入导出的 JSON
+        let meta = MapMeta { grid_pixel_size: self.grid_size, offset_x: self.offset_x, offset_y: self.offset_y, bottom: self.map_bottom };
         let mut layers: Vec<LayerData> = self.layers_data.iter().map(|(&z, grid)| LayerData { major_z: z, name: format!("Layer_{}", z), elevation_grid: grid.clone() }).collect();
         layers.sort_by_key(|l| l.major_z);
         if let Ok(json) = serde_json::to_string_pretty(&MapTerrainExport { map_name: "Ni-Zhan_Map".into(), meta, layers }) { let _ = fs::write(out, json); }
@@ -212,8 +219,6 @@ impl eframe::App for MapEditor {
             });
 
             ui.separator();
-            
-            // 🔥 4列布局：地形、布局、升级、拆除
             ui.columns(4, |cols| {
                 cols[0].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Terrain, "地形"); });
                 cols[1].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Building, "布局"); });
@@ -231,7 +236,6 @@ impl eframe::App for MapEditor {
                 });
             });
 
-            // --- 动态面板区域 ---
             if self.mode == EditMode::Terrain {
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
@@ -270,7 +274,6 @@ impl eframe::App for MapEditor {
                 });
 
             } else if self.mode == EditMode::Upgrade {
-                // 🔥 升级模式专属面板
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("添加全局升级:");
@@ -338,6 +341,11 @@ impl eframe::App for MapEditor {
                     ui.label("偏移 X:"); ui.add(egui::DragValue::new(&mut self.offset_x).speed(1.0));
                     ui.label("偏移 Y:"); ui.add(egui::DragValue::new(&mut self.offset_y).speed(1.0));
                 });
+                // 🔥 新增：在 UI 上显示并允许修改底图高度 (Bottom)
+                ui.horizontal(|ui| {
+                    ui.label("底图高度:"); ui.add(egui::DragValue::new(&mut self.map_bottom).speed(1.0));
+                });
+
                 ui.horizontal(|ui| {
                     ui.label("网格行列:");
                     if ui.add(egui::DragValue::new(&mut self.grid_rows)).changed() { self.resize_grids(); }
@@ -361,6 +369,7 @@ impl eframe::App for MapEditor {
             });
         });
 
+        // ... (右侧画布绘制代码与之前完全一致，保持不变) ...
         egui::CentralPanel::default().show(ctx, |ui| {
             let input = ui.input(|i| i.clone());
             let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
@@ -391,7 +400,6 @@ impl eframe::App for MapEditor {
 
             let t_current = get_time_value(self.current_wave_num, self.current_is_late);
             
-            // 🔥 确定是否需要高亮某种塔（升级模式用）
             let highlight_target_name = if self.mode == EditMode::Upgrade {
                 Some(self.building_templates[self.selected_upgrade_target_idx].name.clone())
             } else {
@@ -417,7 +425,6 @@ impl eframe::App for MapEditor {
                     painter.text(rect.min + Vec2::new(2.0, 2.0), Align2::LEFT_TOP, format!("W{}{}", b.wave_num, if b.is_late { "L" } else { "" }), FontId::proportional(11.0 * self.zoom.max(1.0)), Color32::from_white_alpha(stroke_alpha));
                 }
 
-                // 🔥 高亮显示（升级模式）
                 if let Some(target) = &highlight_target_name {
                     if &b.template_name == target && alpha_mult > 0.5 {
                         painter.rect_stroke(rect.expand(2.0), 0.0, Stroke::new(2.5, Color32::GREEN));

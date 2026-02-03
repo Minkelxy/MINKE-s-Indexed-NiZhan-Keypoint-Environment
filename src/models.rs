@@ -6,8 +6,11 @@ pub struct MapMeta {
     pub grid_pixel_size: f32,
     pub offset_x: f32,
     pub offset_y: f32,
+    #[serde(default)] // 🔥 新增：兼容旧文件，若无此字段则默认为 0.0
+    pub bottom: f32,  // 🔥 新增：底图高度
 }
 
+// ... (其余代码保持不变) ...
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LayerData {
     pub major_z: i32,
@@ -102,9 +105,4 @@ pub struct PlacedBuilding {
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub enum EditMode { 
-    Terrain, 
-    Building, 
-    Upgrade,  // <--- 补上这个！
-    Demolish 
-}
+pub enum EditMode { Terrain, Building, Upgrade, Demolish }
