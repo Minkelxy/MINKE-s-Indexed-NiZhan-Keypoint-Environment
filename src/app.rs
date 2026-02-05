@@ -17,7 +17,8 @@ pub struct MapEditor {
     pub(crate) grid_rows: usize,
     pub(crate) grid_cols: usize,
     pub(crate) current_major_z: i32,
-    pub(crate) layers_data: HashMap<i32, Vec<Vec<i8>>>, 
+    pub(crate) layers_data: HashMap<i32, LayerData>, 
+    pub(crate) current_edit_layer_type: BuildingType,
     pub(crate) current_brush: i8,
     pub(crate) brush_radius: i32, 
     pub(crate) zoom: f32,
@@ -35,7 +36,6 @@ pub struct MapEditor {
     pub current_is_late: bool,
     pub(crate) upgrade_events: Vec<UpgradeEvent>,
     pub(crate) demolish_events: Vec<DemolishEvent>,
-    // 🔥 新增：用于 UI 显示的悬停信息缓存
     pub(crate) hover_info: String,
 }
 
@@ -59,8 +59,7 @@ impl MapEditor {
                 for cfg in configs {
                     b_templates.push(BuildingTemplate {
                         name: cfg.name,
-                        // 🔥 读取配置中的类型，默认为 Floor
-                        b_type: cfg.b_type, 
+                        b_type: cfg.b_type,
                         width: cfg.width, height: cfg.height,
                         color: Color32::from_rgba_unmultiplied(cfg.color[0], cfg.color[1], cfg.color[2], cfg.color[3]),
                         icon: load_icon(&cc.egui_ctx, &cfg.icon_path),
@@ -69,13 +68,7 @@ impl MapEditor {
             }
         }
         if b_templates.is_empty() {
-            b_templates.push(BuildingTemplate { 
-                name: "默认 (1x1)".into(), 
-                b_type: BuildingType::Floor,
-                width: 1, height: 1, 
-                color: Color32::GRAY, 
-                icon: None 
-            });
+            b_templates.push(BuildingTemplate { name: "默认 (1x1)".into(), b_type: BuildingType::Floor, width: 1, height: 1, color: Color32::GRAY, icon: None });
         }
 
         let mut map_presets = Vec::new();
@@ -87,7 +80,9 @@ impl MapEditor {
             texture: None, grid_size: 32.0, offset_x: 0.0, offset_y: 0.0, 
             map_bottom: 1080.0,
             grid_rows: 40, grid_cols: 40, current_major_z: 0,
-            layers_data: HashMap::new(), current_brush: 0, brush_radius: 0,
+            layers_data: HashMap::new(), 
+            current_edit_layer_type: BuildingType::Floor,
+            current_brush: 0, brush_radius: 0,
             zoom: 1.0, pan: Vec2::ZERO, mode: EditMode::Terrain,
             building_templates: b_templates, selected_building_idx: 0, selected_upgrade_target_idx: 0,
             placed_buildings: Vec::new(), next_uid: 1000,
@@ -96,7 +91,17 @@ impl MapEditor {
             upgrade_events: Vec::new(), demolish_events: Vec::new(),
             hover_info: String::new(),
         };
-        editor.layers_data.insert(0, vec![vec![-1; 40]; 40]);
+
+        let default_grid = vec![vec![-1; 40]; 40];
+        editor.layers_data.insert(0, LayerData {
+            major_z: 0,
+            name: "Default Layer".into(),
+            floor_grid: default_grid.clone(),
+            wall_grid: default_grid.clone(),
+            ceiling_grid: default_grid,
+            elevation_grid: None, // 初始化为 None
+        });
+
         editor
     }
 
@@ -116,10 +121,16 @@ impl MapEditor {
                 self.grid_size = data.meta.grid_pixel_size; self.offset_x = data.meta.offset_x; self.offset_y = data.meta.offset_y;
                 if data.meta.bottom > 0.0 { self.map_bottom = data.meta.bottom; }
                 self.layers_data.clear();
-                for layer in data.layers {
-                    self.grid_rows = layer.elevation_grid.len(); self.grid_cols = layer.elevation_grid[0].len();
-                    self.layers_data.insert(layer.major_z, layer.elevation_grid);
+                for mut layer in data.layers {
+                    // 🔥 自动迁移旧数据
+                    layer.normalize();
+                    
+                    self.grid_rows = layer.floor_grid.len().max(self.grid_rows); 
+                    self.grid_cols = layer.floor_grid.first().map_or(0, |r| r.len()).max(self.grid_cols);
+                    self.layers_data.insert(layer.major_z, layer);
                 }
+                // 加载后确保所有层尺寸正确（防止旧数据为空导致 panic）
+                self.resize_grids();
                 self.map_filename = Path::new(&terrain_p).file_name().unwrap().to_string_lossy().into();
             }
         }
@@ -129,14 +140,8 @@ impl MapEditor {
         self.demolish_events.iter().find(|d| d.uid == uid).map(|d| get_time_value(d.wave_num, d.is_late)).unwrap_or(i32::MAX)
     }
 
-    // 🔥 核心逻辑：定义地形 ID 对不同建筑类型的兼容性
-    // 你可以根据需求修改此函数，比如定义 ID 0 为普通地面，ID -1 为障碍，ID 2 为仅墙壁等
     fn check_terrain_capability(&self, terrain_id: i8, b_type: BuildingType) -> bool {
-        // 示例规则：小于 0 的地形（障碍/虚空）禁止任何建造
         if terrain_id < 0 { return false; }
-        
-        // 示例规则：>= 0 的实体方块允许所有类型（地面、墙壁、吊顶）附着
-        // 如果你有特殊地形，可以在这里 match terrain_id
         match b_type {
             BuildingType::Floor => true,
             BuildingType::Wall => true,
@@ -144,33 +149,28 @@ impl MapEditor {
         }
     }
 
-    // 🔥 升级版放置检查：包含高度一致性、地形兼容性、同类型碰撞检测
     fn can_place_building(&self, start_r: usize, start_c: usize, w: usize, h: usize, b_type: BuildingType) -> bool {
         if start_r + h > self.grid_rows || start_c + w > self.grid_cols { return false; }
         
-        let current_grid = self.layers_data.get(&self.current_major_z).unwrap();
+        let layer = self.layers_data.get(&self.current_major_z).unwrap();
+        let target_grid = layer.get_grid(b_type);
         
-        // 1. 获取基准高度（左上角）
-        let base_height = current_grid[start_r][start_c];
-        if base_height < 0 { return false; } // 基准点无效
+        // 增加安全检查：如果旧地图没有初始化该层 grid，直接返回 false
+        if target_grid.is_empty() { return false; }
 
-        // 2. 扫描所有占用格子
+        let base_height = target_grid[start_r][start_c];
+        if base_height < 0 { return false; } 
+
         for r in start_r..(start_r + h) {
             for c in start_c..(start_c + w) {
-                let cell_h = current_grid[r][c];
-                
-                // 规则：建筑不能跨越不同高度的地形
+                let cell_h = target_grid[r][c];
                 if cell_h != base_height { return false; }
-                
-                // 规则：地形必须支持该类型的建筑
                 if !self.check_terrain_capability(cell_h, b_type) { return false; }
             }
         }
 
-        // 3. 碰撞检测
         let t_current = get_time_value(self.current_wave_num, self.current_is_late);
         for b in &self.placed_buildings {
-            // 🔥 关键修改：只有同类型的建筑才会发生碰撞
             if b.b_type != b_type { continue; }
 
             if start_c < b.grid_x + b.width && start_c + w > b.grid_x && start_r < b.grid_y + b.height && start_r + h > b.grid_y {
@@ -183,9 +183,16 @@ impl MapEditor {
     }
 
     fn resize_grids(&mut self) {
-        for grid in self.layers_data.values_mut() {
-            grid.resize(self.grid_rows, vec![-1; self.grid_cols]);
-            for row in grid.iter_mut() { row.resize(self.grid_cols, -1); }
+        for layer in self.layers_data.values_mut() {
+            for grid in [&mut layer.floor_grid, &mut layer.wall_grid, &mut layer.ceiling_grid] {
+                // 如果是空网格（例如新创建的层或旧数据迁移后留空的层），先初始化为 -1
+                if grid.is_empty() {
+                    *grid = vec![vec![-1; self.grid_cols]; self.grid_rows];
+                } else {
+                    grid.resize(self.grid_rows, vec![-1; self.grid_cols]);
+                    for row in grid.iter_mut() { row.resize(self.grid_cols, -1); }
+                }
+            }
         }
     }
 
@@ -209,10 +216,20 @@ impl MapEditor {
                     self.grid_size = data.meta.grid_pixel_size; self.offset_x = data.meta.offset_x; self.offset_y = data.meta.offset_y;
                     if data.meta.bottom > 0.0 { self.map_bottom = data.meta.bottom; }
                     self.layers_data.clear();
-                    for layer in data.layers {
-                        self.grid_rows = layer.elevation_grid.len(); self.grid_cols = layer.elevation_grid[0].len();
-                        self.layers_data.insert(layer.major_z, layer.elevation_grid);
+                    for mut layer in data.layers {
+                        // 🔥 兼容处理：迁移数据
+                        layer.normalize();
+                        
+                        // 确保 grid_rows/cols 更新到加载的地图尺寸
+                        // 注意：这里取 floor_grid 的尺寸，如果是旧数据迁移过来的，它会有值
+                        if !layer.floor_grid.is_empty() {
+                            self.grid_rows = layer.floor_grid.len();
+                            self.grid_cols = layer.floor_grid[0].len();
+                        }
+                        self.layers_data.insert(layer.major_z, layer);
                     }
+                    // 确保所有层（包括刚刚可能没数据的 Wall/Ceiling）都被初始化到正确尺寸
+                    self.resize_grids(); 
                 }
             }
         }
@@ -228,7 +245,6 @@ impl MapEditor {
                         PlacedBuilding { 
                             uid: b.uid, 
                             template_name: b.name.clone(), 
-                            // 🔥 导入时读取类型
                             b_type: b.b_type,
                             grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height, 
                             color, wave_num: b.wave_num, is_late: b.is_late 
@@ -246,7 +262,7 @@ impl MapEditor {
         let _ = fs::create_dir_all("output");
         let out = PathBuf::from("output").join(&self.map_filename);
         let meta = MapMeta { grid_pixel_size: self.grid_size, offset_x: self.offset_x, offset_y: self.offset_y, bottom: self.map_bottom };
-        let mut layers: Vec<LayerData> = self.layers_data.iter().map(|(&z, grid)| LayerData { major_z: z, name: format!("Layer_{}", z), elevation_grid: grid.clone() }).collect();
+        let mut layers: Vec<LayerData> = self.layers_data.values().cloned().collect();
         layers.sort_by_key(|l| l.major_z);
         if let Ok(json) = serde_json::to_string_pretty(&MapTerrainExport { map_name: "Ni-Zhan_Map".into(), meta, layers }) { let _ = fs::write(out, json); }
     }
@@ -256,7 +272,6 @@ impl MapEditor {
         let b_exp: Vec<BuildingExport> = self.placed_buildings.iter().map(|b| BuildingExport { 
             uid: b.uid, 
             name: b.template_name.clone(),
-            // 🔥 导出时包含类型
             b_type: b.b_type,
             grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height, 
             wave_num: b.wave_num, is_late: b.is_late 
@@ -272,13 +287,13 @@ impl eframe::App for MapEditor {
             ui.style_mut().spacing.item_spacing.y = 8.0;
             ui.vertical_centered_justified(|ui| { ui.heading("MINKE 策略编辑器"); });
 
-            // 🔥 新增：信息监视面板
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
                 ui.label("当前状态监视:");
                 ui.label(&self.hover_info);
             });
 
+            // ... (预设、模式选择、时间轴控制代码保持不变) ...
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
                 ui.label("关卡预设:");
@@ -288,7 +303,6 @@ impl eframe::App for MapEditor {
                     }
                 });
             });
-
             ui.separator();
             ui.columns(4, |cols| {
                 cols[0].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Terrain, "地形"); });
@@ -296,7 +310,6 @@ impl eframe::App for MapEditor {
                 cols[2].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Upgrade, "升级"); });
                 cols[3].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Demolish, "拆除"); });
             });
-
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
                 ui.label("时间轴控制:");
@@ -310,6 +323,14 @@ impl eframe::App for MapEditor {
             if self.mode == EditMode::Terrain {
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
+                    ui.label("地形编辑层级:");
+                    ui.horizontal(|ui| {
+                        ui.radio_value(&mut self.current_edit_layer_type, BuildingType::Floor, "地面");
+                        ui.radio_value(&mut self.current_edit_layer_type, BuildingType::Wall, "墙壁");
+                        ui.radio_value(&mut self.current_edit_layer_type, BuildingType::Ceiling, "吊顶");
+                    });
+                    ui.separator();
+
                     ui.label("地形笔刷:");
                     let brushes = [(-1, "障碍"), (0, "平地"), (1, "高台1"), (2, "高台2"), (3, "高台3")];
                     for (val, label) in brushes.iter() {
@@ -323,7 +344,8 @@ impl eframe::App for MapEditor {
                 });
 
             } else if self.mode == EditMode::Building {
-                ui.group(|ui| {
+                // ... (建筑模式 UI 保持不变) ...
+                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("选择建筑物:");
                     egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
@@ -331,7 +353,6 @@ impl eframe::App for MapEditor {
                             for (i, t) in self.building_templates.iter().enumerate() {
                                 ui.horizontal(|ui| {
                                     ui.set_min_width(ui.available_width());
-                                    // 🔥 显示建筑类型标识
                                     let type_label = match t.b_type {
                                         BuildingType::Floor => "[地]",
                                         BuildingType::Wall => "[墙]",
@@ -350,8 +371,8 @@ impl eframe::App for MapEditor {
                         });
                     });
                 });
-
             } else if self.mode == EditMode::Upgrade {
+                // ... (升级模式 UI 保持不变) ...
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("添加全局升级:");
@@ -372,15 +393,12 @@ impl eframe::App for MapEditor {
                         }
                     });
                 });
-
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("已配置的升级序列:");
                     let mut delete_idx = None;
                     egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                        if self.upgrade_events.is_empty() {
-                            ui.label("暂无升级记录");
-                        }
+                        if self.upgrade_events.is_empty() { ui.label("暂无升级记录"); }
                         for (i, ev) in self.upgrade_events.iter().enumerate() {
                             ui.horizontal(|ui| {
                                 if ui.button("[X]").clicked() { delete_idx = Some(i); }
@@ -390,16 +408,14 @@ impl eframe::App for MapEditor {
                     });
                     if let Some(idx) = delete_idx { self.upgrade_events.remove(idx); }
                 });
-
-            } else { // Demolish Mode
-                ui.group(|ui| {
+            } else { 
+                // ... (拆除模式 UI 保持不变) ...
+                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("拆除任务预览:");
                     let mut delete_idx = None;
                     egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                        if self.demolish_events.is_empty() {
-                            ui.label("暂无拆除记录");
-                        }
+                        if self.demolish_events.is_empty() { ui.label("暂无拆除记录"); }
                         for (i, ev) in self.demolish_events.iter().enumerate() {
                             ui.horizontal(|ui| {
                                 if ui.button("[X]").clicked() { delete_idx = Some(i); }
@@ -422,7 +438,6 @@ impl eframe::App for MapEditor {
                 ui.horizontal(|ui| {
                     ui.label("底图高度:"); ui.add(egui::DragValue::new(&mut self.map_bottom).speed(1.0));
                 });
-
                 ui.horizontal(|ui| {
                     ui.label("网格行列:");
                     if ui.add(egui::DragValue::new(&mut self.grid_rows)).changed() { self.resize_grids(); }
@@ -466,21 +481,55 @@ impl eframe::App for MapEditor {
                 painter.image(tex.id(), Rect::from_min_size(panel_rect.min + self.pan, tex.size_vec2() * self.zoom), Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
             }
 
-            let grid = self.layers_data.get(&self.current_major_z).unwrap();
-            for r in 0..self.grid_rows {
-                for c in 0..self.grid_cols {
-                    let rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid, r as f32 * z_grid), Vec2::splat(z_grid)).shrink(0.5);
-                    if panel_rect.intersects(rect) { painter.rect_filled(rect, 0.0, get_layer_color(grid[r][c])); }
+            let layer = self.layers_data.get(&self.current_major_z).unwrap();
+
+            let draw_layer = |grid: &Vec<Vec<i8>>, layer_type: BuildingType, is_active: bool| {
+                for r in 0..self.grid_rows {
+                    for c in 0..self.grid_cols {
+                        let val = grid[r][c];
+                        // 🔥 修复1：允许绘制 -1 (障碍物)。假设 -2 或更小才是“空/透明”
+                        // 如果 grid 初始化是 -1，那么整个地图默认是红的。如果不想这样，建议初始值改为 -2，或者用户手动刷 -1
+                        // 这里改为只跳过小于 -1 的值
+                        if val < -1 { continue; } 
+
+                        let rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid, r as f32 * z_grid), Vec2::splat(z_grid)).shrink(0.5);
+                        
+                        if panel_rect.intersects(rect) { 
+                            let mut color = get_layer_color(val); 
+                            
+                            match layer_type {
+                                BuildingType::Floor => {}, 
+                                BuildingType::Wall => { color = Color32::from_rgba_unmultiplied(color.r(), (color.g() as f32 * 0.5) as u8, color.b(), 220); }, 
+                                BuildingType::Ceiling => { color = Color32::from_rgba_unmultiplied(color.r(), color.g(), (color.b() as f32 * 0.5) as u8, 220); }, 
+                            }
+
+                            if !is_active {
+                                color = color.linear_multiply(0.2);
+                            }
+
+                            if is_active && self.mode == EditMode::Terrain {
+                                painter.rect_filled(rect, 0.0, color);
+                            } else {
+                                if is_active { painter.rect_filled(rect, 0.0, color); }
+                                else { painter.rect_stroke(rect.shrink(1.0), 0.0, Stroke::new(1.0, color)); }
+                            }
+                        }
+                    }
+                }
+            };
+
+            for &l_type in &[BuildingType::Floor, BuildingType::Wall, BuildingType::Ceiling] {
+                if l_type != self.current_edit_layer_type {
+                    draw_layer(layer.get_grid(l_type), l_type, false);
                 }
             }
+            draw_layer(layer.get_grid(self.current_edit_layer_type), self.current_edit_layer_type, true);
 
-            let t_current = get_time_value(self.current_wave_num, self.current_is_late);
-            
+            // ... (建筑绘制和鼠标交互代码保持不变) ...
+             let t_current = get_time_value(self.current_wave_num, self.current_is_late);
             let highlight_target_name = if self.mode == EditMode::Upgrade {
                 Some(self.building_templates[self.selected_upgrade_target_idx].name.clone())
-            } else {
-                None
-            };
+            } else { None };
 
             for b in &self.placed_buildings {
                 let t_create = get_time_value(b.wave_num, b.is_late);
@@ -513,19 +562,21 @@ impl eframe::App for MapEditor {
                 }
             }
 
-            // --- 鼠标交互与信息更新 ---
-            self.hover_info = "无".to_string(); // Reset info
+            self.hover_info = "无".to_string(); 
 
             if let Some(pos) = input.pointer.hover_pos() {
                 let rel = pos - origin; 
                 let (cx, ry) = ((rel.x / z_grid).floor() as i32, (rel.y / z_grid).floor() as i32);
                 
-                // 🔥 更新悬停信息
                 if cx >= 0 && ry >= 0 && (cx as usize) < self.grid_cols && (ry as usize) < self.grid_rows {
-                    let terrain_h = grid[ry as usize][cx as usize];
-                    self.hover_info = format!("坐标: ({}, {})\n高度/地形ID: {}", cx, ry, terrain_h);
+                    let current_grid = layer.get_grid(self.current_edit_layer_type);
+                    let terrain_h = current_grid[ry as usize][cx as usize];
+                    
+                    // 🔥 修复2：增加像素坐标显示
+                    let px_x = cx as f32 * self.grid_size;
+                    let px_y = ry as f32 * self.grid_size;
+                    self.hover_info = format!("Grid: ({}, {})\nPixel: ({:.1}, {:.1})\n层级: {:?}\nID: {}", cx, ry, px_x, px_y, self.current_edit_layer_type, terrain_h);
 
-                    // 查找该位置所有可见的堆叠建筑
                     let hovered_buildings: Vec<&PlacedBuilding> = self.placed_buildings.iter().filter(|b| {
                         cx >= b.grid_x as i32 && cx < (b.grid_x + b.width) as i32 && 
                         ry >= b.grid_y as i32 && ry < (b.grid_y + b.height) as i32 &&
@@ -533,12 +584,10 @@ impl eframe::App for MapEditor {
                     }).collect();
 
                     if !hovered_buildings.is_empty() {
-                        self.hover_info += "\n\n[堆叠建筑]:";
+                        self.hover_info += "\n\n[建筑]:";
                         for b in hovered_buildings {
                             let type_str = match b.b_type {
-                                BuildingType::Floor => "地面",
-                                BuildingType::Wall => "墙壁",
-                                BuildingType::Ceiling => "吊顶",
+                                BuildingType::Floor => "地", BuildingType::Wall => "墙", BuildingType::Ceiling => "顶",
                             };
                             self.hover_info += &format!("\n- {} ({})", b.template_name, type_str);
                         }
@@ -546,12 +595,14 @@ impl eframe::App for MapEditor {
                 } else {
                     self.hover_info = "光标越界".to_string();
                 }
-
-                if self.mode == EditMode::Terrain {
+                
+                 if self.mode == EditMode::Terrain {
                     let (c, r) = (cx, ry);
                     if r >= 0 && c >= 0 && (r as usize) < self.grid_rows && (c as usize) < self.grid_cols {
                         if input.pointer.button_down(egui::PointerButton::Primary) || input.pointer.button_down(egui::PointerButton::Secondary) {
-                            let grid = self.layers_data.get_mut(&self.current_major_z).unwrap();
+                            let layer_data = self.layers_data.get_mut(&self.current_major_z).unwrap();
+                            let grid = layer_data.get_grid_mut(self.current_edit_layer_type);
+                            
                             let val = if input.pointer.button_down(egui::PointerButton::Primary) { self.current_brush } else { -1 };
                             for dr in (r-self.brush_radius)..=(r+self.brush_radius) {
                                 for dc in (c-self.brush_radius)..=(c+self.brush_radius) {
@@ -561,12 +612,12 @@ impl eframe::App for MapEditor {
                         }
                     }
                 } else if self.mode == EditMode::Building {
-                    let t = &self.building_templates[self.selected_building_idx];
+                    // ... (保持不变)
+                     let t = &self.building_templates[self.selected_building_idx];
                     let c = ((rel.x / z_grid) - (t.width as f32 / 2.0)).round() as i32;
                     let r = ((rel.y / z_grid) - (t.height as f32 / 2.0)).round() as i32;
                     let ghost_rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid, r as f32 * z_grid), Vec2::new(t.width as f32 * z_grid, t.height as f32 * z_grid));
                     
-                    // 🔥 放置检查：传入类型
                     let is_valid = r >= 0 && c >= 0 && self.can_place_building(r as usize, c as usize, t.width, t.height, t.b_type);
                     
                     painter.rect_stroke(ghost_rect, 0.0, Stroke::new(2.5, if is_valid { Color32::GREEN } else { Color32::RED }));
@@ -574,18 +625,18 @@ impl eframe::App for MapEditor {
                         self.placed_buildings.push(PlacedBuilding { 
                             uid: self.next_uid, 
                             template_name: t.name.clone(), 
-                            b_type: t.b_type, // 🔥 记录类型
+                            b_type: t.b_type, 
                             grid_x: c as usize, grid_y: r as usize, width: t.width, height: t.height, 
                             color: t.color, wave_num: self.current_wave_num, is_late: self.current_is_late 
                         });
                         self.next_uid += 1;
                     } else if response.clicked_by(egui::PointerButton::Secondary) {
                         let (px, py) = (cx, ry);
-                        // 删除当前位置所有建筑
                         self.placed_buildings.retain(|b| !(px >= b.grid_x as i32 && px < (b.grid_x + b.width) as i32 && py >= b.grid_y as i32 && py < (b.grid_y + b.height) as i32));
                         self.demolish_events.retain(|e| !self.placed_buildings.iter().any(|b| b.uid == e.uid));
                     }
                 } else if self.mode == EditMode::Demolish {
+                    // ... (保持不变)
                     let (px, py) = (cx, ry);
                     let target = self.placed_buildings.iter().find(|b| {
                         px >= b.grid_x as i32 && px < (b.grid_x + b.width) as i32 && py >= b.grid_y as i32 && py < (b.grid_y + b.height) as i32 &&
