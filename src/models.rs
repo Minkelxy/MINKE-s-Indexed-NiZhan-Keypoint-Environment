@@ -1,6 +1,18 @@
 use serde::{Deserialize, Serialize};
 use eframe::egui::{Color32, TextureHandle};
 
+
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
+pub enum BuildingType {
+    Floor,   // 地面
+    Wall,    // 墙壁
+    Ceiling, // 吊顶
+}
+
+// 兼容旧数据的默认值函数
+fn default_building_type() -> BuildingType { BuildingType::Floor }
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MapMeta {
     pub grid_pixel_size: f32,
@@ -10,7 +22,6 @@ pub struct MapMeta {
     pub bottom: f32,  // 🔥 新增：底图高度
 }
 
-// ... (其余代码保持不变) ...
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LayerData {
     pub major_z: i32,
@@ -22,6 +33,8 @@ pub struct LayerData {
 pub struct BuildingExport {
     pub uid: usize,
     pub name: String,
+    #[serde(default = "default_building_type")]
+    pub b_type: BuildingType,
     pub grid_x: usize,
     pub grid_y: usize,
     pub width: usize,
@@ -69,6 +82,8 @@ pub struct MapBuildingsExport {
 #[derive(Deserialize, Clone)]
 pub struct BuildingConfig {
     pub name: String,
+    #[serde(default = "default_building_type")] 
+    pub b_type: BuildingType,
     pub width: usize,
     pub height: usize,
     pub color: [u8; 4],
@@ -85,6 +100,7 @@ pub struct MapPreset {
 #[derive(Clone)]
 pub struct BuildingTemplate {
     pub name: String,
+    pub b_type: BuildingType,
     pub width: usize,
     pub height: usize,
     pub color: Color32,
@@ -95,6 +111,7 @@ pub struct BuildingTemplate {
 pub struct PlacedBuilding {
     pub uid: usize,
     pub template_name: String,
+    pub b_type: BuildingType,
     pub grid_x: usize,
     pub grid_y: usize,
     pub width: usize,
