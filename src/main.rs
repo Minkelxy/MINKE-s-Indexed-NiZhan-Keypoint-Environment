@@ -26,6 +26,7 @@ fn main() -> eframe::Result<()> {
         if let Ok(d) = fs::read("C:\\Windows\\Fonts\\simhei.ttf") {
             f.font_data.insert("s".into(), egui::FontData::from_owned(d));
             f.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(0, "s".into());
+            f.families.get_mut(&egui::FontFamily::Monospace).unwrap().insert(0, "s".into());
             println!("[System] Font SimHei.ttf loaded successfully.");
         } else {
             println!("[System] [WARN] SimHei.ttf not found.");

@@ -1,13 +1,23 @@
 [
     {
-        "name": "小型弹板陷阱",
+        "name": "天启陷阱",
         "b_type": "Floor",
         "width": 4,
         "height": 4,
         "color": [180, 180, 180, 255],
+        "icon_path": "maps/icons/天启陷阱.png",
+        "select_pos": [520, 330],
+        "cost": 2500
+    },
+    {
+        "name": "小型弹板陷阱",
+        "b_type": "Floor",
+        "width": 2,
+        "height": 2,
+        "color": [180, 180, 180, 255],
         "icon_path": "maps/icons/小型弹板陷阱.png",
         "select_pos": [520, 330],
-        "cost": 1000
+        "cost": 400
     },
     {
         "name": "巨型弹板陷阱",
@@ -17,7 +27,7 @@
         "color": [160, 160, 160, 255],
         "icon_path": "maps/icons/巨型弹板陷阱.png",
         "select_pos": [690, 330],
-        "cost": 2500
+        "cost": 3000
     },
     {
         "name": "减速陷阱",
@@ -27,7 +37,7 @@
         "color": [80, 100, 255, 255],
         "icon_path": "maps/icons/减速陷阱.png",
         "select_pos": [860, 330],
-        "cost": 800
+        "cost": 400
     },
     {
         "name": "突刺陷阱",
@@ -37,7 +47,7 @@
         "color": [130, 130, 130, 255],
         "icon_path": "maps/icons/突刺陷阱.png",
         "select_pos": [1030, 330],
-        "cost": 1200
+        "cost": 600
     },
     {
         "name": "防空导弹",
@@ -47,7 +57,7 @@
         "color": [60, 200, 255, 255],
         "icon_path": "maps/icons/防空导弹.png",
         "select_pos": [1200, 330],
-        "cost": 1500
+        "cost": 600
     },
     {
         "name": "自修复磁暴塔",
@@ -57,7 +67,7 @@
         "color": [255, 255, 120, 255],
         "icon_path": "maps/icons/自修复磁暴塔.png",
         "select_pos": [520, 535],
-        "cost": 3000
+        "cost": 2500
     },
     {
         "name": "破坏者",
@@ -67,7 +77,7 @@
         "color": [255, 60, 60, 255],
         "icon_path": "maps/icons/破坏者.png",
         "select_pos": [690, 535],
-        "cost": 2800
+        "cost": 2500
     },
     {
         "name": "修理站",
@@ -77,7 +87,7 @@
         "color": [100, 255, 100, 255],
         "icon_path": "maps/icons/修理站.png",
         "select_pos": [860, 535],
-        "cost": 500
+        "cost": 800
     },
     {
         "name": "岗哨机枪",
@@ -87,7 +97,7 @@
         "color": [255, 120, 80, 255],
         "icon_path": "maps/icons/岗哨机枪.png",
         "select_pos": [1030, 535],
-        "cost": 2000
+        "cost": 1000
     },
     {
         "name": "诱捕陷阱",
@@ -97,17 +107,7 @@
         "color": [140, 100, 180, 255],
         "icon_path": "maps/icons/诱捕陷阱.png",
         "select_pos": [1200, 535],
-        "cost": 900
-    },
-    {
-        "name": "毒刺陷阱",
-        "b_type": "Wall",
-        "width": 2,
-        "height": 2,
-        "color": [80, 180, 80, 255],
-        "icon_path": "maps/icons/毒刺陷阱.png",
-        "select_pos": [520, 740],
-        "cost": 1100
+        "cost": 800
     },
     {
         "name": "电击陷阱",
@@ -117,7 +117,17 @@
         "color": [140, 80, 255, 255],
         "icon_path": "maps/icons/电击陷阱.png",
         "select_pos": [690, 740],
-        "cost": 1300
+        "cost": 400
+    },
+    {
+        "name": "毒刺陷阱",
+        "b_type": "Wall",
+        "width": 2,
+        "height": 2,
+        "color": [80, 180, 80, 255],
+        "icon_path": "maps/icons/毒刺陷阱.png",
+        "select_pos": [520, 740],
+        "cost": 600
     },
     {
         "name": "战防炮",
@@ -127,7 +137,7 @@
         "color": [200, 80, 40, 255],
         "icon_path": "maps/icons/战防炮.png",
         "select_pos": [860, 740],
-        "cost": 2200
+        "cost": 1000
     },
     {
         "name": "歼灭者",
@@ -137,6 +147,86 @@
         "color": [100, 100, 100, 255],
         "icon_path": "maps/icons/歼灭者.png",
         "select_pos": [1030, 740],
-        "cost": 5000
+        "cost": 2500
+    },
+    {
+        "name": "智能枪塔",
+        "b_type": "Floor",
+        "width": 4,
+        "height": 4,
+        "color": [100, 100, 100, 255],
+        "icon_path": "maps/icons/智能枪塔.png",
+        "select_pos": [1030, 740],
+        "cost": 2500
+    },
+    {
+        "name": "狂风陷阱",
+        "b_type": "Wall",
+        "width": 2,
+        "height": 2,
+        "color": [100, 100, 100, 255],
+        "icon_path": "maps/icons/狂风陷阱.png",
+        "select_pos": [1030, 740],
+        "cost": 600
+    },
+    {
+        "name": "火焰发射器",
+        "b_type": "Wall",
+        "width": 2,
+        "height": 2,
+        "color": [100, 100, 100, 255],
+        "icon_path": "maps/icons/火焰发射器.png",
+        "select_pos": [1030, 740],
+        "cost": 800
+    },
+    {
+        "name": "激光发射器",
+        "b_type": "Wall",
+        "width": 2,
+        "height": 2,
+        "color": [100, 100, 100, 255],
+        "icon_path": "maps/icons/激光发射器.png",
+        "select_pos": [1030, 740],
+        "cost": 800
+    },
+    {
+        "name": "天网陷阱",
+        "b_type": "Wall",
+        "width": 2,
+        "height": 2,
+        "color": [100, 100, 100, 255],
+        "icon_path": "maps/icons/天网陷阱.png",
+        "select_pos": [1030, 740],
+        "cost": 1100
+    },
+    {
+        "name": "高能激光",
+        "b_type": "Ceiling",
+        "width": 4,
+        "height": 4,
+        "color": [100, 100, 100, 255],
+        "icon_path": "maps/icons/高能激光.png",
+        "select_pos": [1030, 740],
+        "cost": 2000
+    },
+    {
+        "name": "聚能炮",
+        "b_type": "Ceiling",
+        "width": 2,
+        "height": 2,
+        "color": [100, 100, 100, 255],
+        "icon_path": "maps/icons/聚能炮.png",
+        "select_pos": [1030, 740],
+        "cost": 1500
+    },
+    {
+        "name": "暴风之眼",
+        "b_type": "Ceiling",
+        "width": 4,
+        "height": 4,
+        "color": [100, 100, 100, 255],
+        "icon_path": "maps/icons/暴风之眼.png",
+        "select_pos": [1030, 740],
+        "cost": 1500
     }
 ]

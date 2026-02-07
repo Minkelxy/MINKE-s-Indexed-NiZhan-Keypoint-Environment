@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, TextureHandle, Vec2, Align2, FontId};
+use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, TextureHandle, Vec2, Align2, FontId, FontFamily};
 use image::io::Reader as ImageReader;
 use std::collections::HashMap;
 use std::fs;
@@ -99,7 +99,7 @@ impl MapEditor {
             floor_grid: default_grid.clone(),
             wall_grid: default_grid.clone(),
             ceiling_grid: default_grid,
-            elevation_grid: None, // 初始化为 None
+            elevation_grid: None, 
         });
 
         editor
@@ -122,14 +122,13 @@ impl MapEditor {
                 if data.meta.bottom > 0.0 { self.map_bottom = data.meta.bottom; }
                 self.layers_data.clear();
                 for mut layer in data.layers {
-                    // 🔥 自动迁移旧数据
                     layer.normalize();
-                    
-                    self.grid_rows = layer.floor_grid.len().max(self.grid_rows); 
-                    self.grid_cols = layer.floor_grid.first().map_or(0, |r| r.len()).max(self.grid_cols);
+                    if !layer.floor_grid.is_empty() {
+                        self.grid_rows = layer.floor_grid.len();
+                        self.grid_cols = layer.floor_grid[0].len();
+                    }
                     self.layers_data.insert(layer.major_z, layer);
                 }
-                // 加载后确保所有层尺寸正确（防止旧数据为空导致 panic）
                 self.resize_grids();
                 self.map_filename = Path::new(&terrain_p).file_name().unwrap().to_string_lossy().into();
             }
@@ -155,7 +154,6 @@ impl MapEditor {
         let layer = self.layers_data.get(&self.current_major_z).unwrap();
         let target_grid = layer.get_grid(b_type);
         
-        // 增加安全检查：如果旧地图没有初始化该层 grid，直接返回 false
         if target_grid.is_empty() { return false; }
 
         let base_height = target_grid[start_r][start_c];
@@ -185,7 +183,6 @@ impl MapEditor {
     fn resize_grids(&mut self) {
         for layer in self.layers_data.values_mut() {
             for grid in [&mut layer.floor_grid, &mut layer.wall_grid, &mut layer.ceiling_grid] {
-                // 如果是空网格（例如新创建的层或旧数据迁移后留空的层），先初始化为 -1
                 if grid.is_empty() {
                     *grid = vec![vec![-1; self.grid_cols]; self.grid_rows];
                 } else {
@@ -217,18 +214,13 @@ impl MapEditor {
                     if data.meta.bottom > 0.0 { self.map_bottom = data.meta.bottom; }
                     self.layers_data.clear();
                     for mut layer in data.layers {
-                        // 🔥 兼容处理：迁移数据
                         layer.normalize();
-                        
-                        // 确保 grid_rows/cols 更新到加载的地图尺寸
-                        // 注意：这里取 floor_grid 的尺寸，如果是旧数据迁移过来的，它会有值
                         if !layer.floor_grid.is_empty() {
                             self.grid_rows = layer.floor_grid.len();
                             self.grid_cols = layer.floor_grid[0].len();
                         }
                         self.layers_data.insert(layer.major_z, layer);
                     }
-                    // 确保所有层（包括刚刚可能没数据的 Wall/Ceiling）都被初始化到正确尺寸
                     self.resize_grids(); 
                 }
             }
@@ -287,13 +279,8 @@ impl eframe::App for MapEditor {
             ui.style_mut().spacing.item_spacing.y = 8.0;
             ui.vertical_centered_justified(|ui| { ui.heading("MINKE 策略编辑器"); });
 
-            ui.group(|ui| {
-                ui.set_min_width(ui.available_width());
-                ui.label("当前状态监视:");
-                ui.label(&self.hover_info);
-            });
+            // 侧边栏移除了 "当前状态监视"，改为悬浮绘制
 
-            // ... (预设、模式选择、时间轴控制代码保持不变) ...
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
                 ui.label("关卡预设:");
@@ -344,7 +331,6 @@ impl eframe::App for MapEditor {
                 });
 
             } else if self.mode == EditMode::Building {
-                // ... (建筑模式 UI 保持不变) ...
                  ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("选择建筑物:");
@@ -372,7 +358,6 @@ impl eframe::App for MapEditor {
                     });
                 });
             } else if self.mode == EditMode::Upgrade {
-                // ... (升级模式 UI 保持不变) ...
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("添加全局升级:");
@@ -409,7 +394,6 @@ impl eframe::App for MapEditor {
                     if let Some(idx) = delete_idx { self.upgrade_events.remove(idx); }
                 });
             } else { 
-                // ... (拆除模式 UI 保持不变) ...
                  ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("拆除任务预览:");
@@ -487,9 +471,6 @@ impl eframe::App for MapEditor {
                 for r in 0..self.grid_rows {
                     for c in 0..self.grid_cols {
                         let val = grid[r][c];
-                        // 🔥 修复1：允许绘制 -1 (障碍物)。假设 -2 或更小才是“空/透明”
-                        // 如果 grid 初始化是 -1，那么整个地图默认是红的。如果不想这样，建议初始值改为 -2，或者用户手动刷 -1
-                        // 这里改为只跳过小于 -1 的值
                         if val < -1 { continue; } 
 
                         let rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid, r as f32 * z_grid), Vec2::splat(z_grid)).shrink(0.5);
@@ -525,8 +506,7 @@ impl eframe::App for MapEditor {
             }
             draw_layer(layer.get_grid(self.current_edit_layer_type), self.current_edit_layer_type, true);
 
-            // ... (建筑绘制和鼠标交互代码保持不变) ...
-             let t_current = get_time_value(self.current_wave_num, self.current_is_late);
+            let t_current = get_time_value(self.current_wave_num, self.current_is_late);
             let highlight_target_name = if self.mode == EditMode::Upgrade {
                 Some(self.building_templates[self.selected_upgrade_target_idx].name.clone())
             } else { None };
@@ -547,7 +527,13 @@ impl eframe::App for MapEditor {
                 if alpha_mult > 0.1 {
                     let stroke_alpha = (180.0 * alpha_mult) as u8;
                     painter.rect_stroke(rect, 1.5, Stroke::new(1.5, Color32::from_black_alpha(stroke_alpha)));
-                    painter.text(rect.min + Vec2::new(2.0, 2.0), Align2::LEFT_TOP, format!("W{}{}", b.wave_num, if b.is_late { "L" } else { "" }), FontId::proportional(11.0 * self.zoom.max(1.0)), Color32::from_white_alpha(stroke_alpha));
+                    painter.text(
+    rect.min + Vec2::new(2.0, 2.0), 
+    Align2::LEFT_TOP, 
+    format!("W{}{}", b.wave_num, if b.is_late { "L" } else { "" }), 
+    FontId::proportional(18.0 * self.zoom.max(1.0)), 
+    Color32::BLACK // 改成红色
+);
                 }
 
                 if let Some(target) = &highlight_target_name {
@@ -564,92 +550,107 @@ impl eframe::App for MapEditor {
 
             self.hover_info = "无".to_string(); 
 
-            if let Some(pos) = input.pointer.hover_pos() {
-                let rel = pos - origin; 
-                let (cx, ry) = ((rel.x / z_grid).floor() as i32, (rel.y / z_grid).floor() as i32);
-                
-                if cx >= 0 && ry >= 0 && (cx as usize) < self.grid_cols && (ry as usize) < self.grid_rows {
-                    let current_grid = layer.get_grid(self.current_edit_layer_type);
-                    let terrain_h = current_grid[ry as usize][cx as usize];
+            // 🔥 核心修改：输入隔离与交互逻辑
+            // 只有当鼠标悬停在中央画布区域时，才处理地图交互
+            if response.hovered() {
+                if let Some(pos) = input.pointer.hover_pos() {
+                    let rel = pos - origin; 
+                    let (cx, ry) = ((rel.x / z_grid).floor() as i32, (rel.y / z_grid).floor() as i32);
                     
-                    // 🔥 修复2：增加像素坐标显示
-                    let px_x = cx as f32 * self.grid_size;
-                    let px_y = ry as f32 * self.grid_size;
-                    self.hover_info = format!("Grid: ({}, {})\nPixel: ({:.1}, {:.1})\n层级: {:?}\nID: {}", cx, ry, px_x, px_y, self.current_edit_layer_type, terrain_h);
+                    if cx >= 0 && ry >= 0 && (cx as usize) < self.grid_cols && (ry as usize) < self.grid_rows {
+                        let current_grid = layer.get_grid(self.current_edit_layer_type);
+                        let terrain_h = current_grid[ry as usize][cx as usize];
+                        
+                        let px_x = cx as f32 * self.grid_size;
+                        let px_y = ry as f32 * self.grid_size;
+                        
+                        self.hover_info = format!("Grid: ({}, {})\nPixel: ({:.1}, {:.1})\n层级: {:?}\nID: {}", cx, ry, px_x, px_y, self.current_edit_layer_type, terrain_h);
 
-                    let hovered_buildings: Vec<&PlacedBuilding> = self.placed_buildings.iter().filter(|b| {
-                        cx >= b.grid_x as i32 && cx < (b.grid_x + b.width) as i32 && 
-                        ry >= b.grid_y as i32 && ry < (b.grid_y + b.height) as i32 &&
-                        t_current >= get_time_value(b.wave_num, b.is_late) && t_current < self.get_building_demolish_time(b.uid)
-                    }).collect();
+                        let hovered_buildings: Vec<&PlacedBuilding> = self.placed_buildings.iter().filter(|b| {
+                            cx >= b.grid_x as i32 && cx < (b.grid_x + b.width) as i32 && 
+                            ry >= b.grid_y as i32 && ry < (b.grid_y + b.height) as i32 &&
+                            t_current >= get_time_value(b.wave_num, b.is_late) && t_current < self.get_building_demolish_time(b.uid)
+                        }).collect();
 
-                    if !hovered_buildings.is_empty() {
-                        self.hover_info += "\n\n[建筑]:";
-                        for b in hovered_buildings {
-                            let type_str = match b.b_type {
-                                BuildingType::Floor => "地", BuildingType::Wall => "墙", BuildingType::Ceiling => "顶",
-                            };
-                            self.hover_info += &format!("\n- {} ({})", b.template_name, type_str);
+                        if !hovered_buildings.is_empty() {
+                            self.hover_info += "\n\n[建筑]:";
+                            for b in hovered_buildings {
+                                let type_str = match b.b_type {
+                                    BuildingType::Floor => "地", BuildingType::Wall => "墙", BuildingType::Ceiling => "顶",
+                                };
+                                self.hover_info += &format!("\n- {} ({})", b.template_name, type_str);
+                            }
                         }
+                    } else {
+                        self.hover_info = "光标越界".to_string();
                     }
-                } else {
-                    self.hover_info = "光标越界".to_string();
-                }
-                
-                 if self.mode == EditMode::Terrain {
-                    let (c, r) = (cx, ry);
-                    if r >= 0 && c >= 0 && (r as usize) < self.grid_rows && (c as usize) < self.grid_cols {
-                        if input.pointer.button_down(egui::PointerButton::Primary) || input.pointer.button_down(egui::PointerButton::Secondary) {
-                            let layer_data = self.layers_data.get_mut(&self.current_major_z).unwrap();
-                            let grid = layer_data.get_grid_mut(self.current_edit_layer_type);
-                            
-                            let val = if input.pointer.button_down(egui::PointerButton::Primary) { self.current_brush } else { -1 };
-                            for dr in (r-self.brush_radius)..=(r+self.brush_radius) {
-                                for dc in (c-self.brush_radius)..=(c+self.brush_radius) {
-                                    if dr >= 0 && dc >= 0 && (dr as usize) < self.grid_rows && (dc as usize) < self.grid_cols { grid[dr as usize][dc as usize] = val; }
+                    
+                    // 仅当 Hovered 时处理编辑逻辑
+                    if self.mode == EditMode::Terrain {
+                        let (c, r) = (cx, ry);
+                        if r >= 0 && c >= 0 && (r as usize) < self.grid_rows && (c as usize) < self.grid_cols {
+                            if input.pointer.button_down(egui::PointerButton::Primary) || input.pointer.button_down(egui::PointerButton::Secondary) {
+                                let layer_data = self.layers_data.get_mut(&self.current_major_z).unwrap();
+                                let grid = layer_data.get_grid_mut(self.current_edit_layer_type);
+                                
+                                let val = if input.pointer.button_down(egui::PointerButton::Primary) { self.current_brush } else { -1 };
+                                for dr in (r-self.brush_radius)..=(r+self.brush_radius) {
+                                    for dc in (c-self.brush_radius)..=(c+self.brush_radius) {
+                                        if dr >= 0 && dc >= 0 && (dr as usize) < self.grid_rows && (dc as usize) < self.grid_cols { grid[dr as usize][dc as usize] = val; }
+                                    }
                                 }
                             }
                         }
-                    }
-                } else if self.mode == EditMode::Building {
-                    // ... (保持不变)
-                     let t = &self.building_templates[self.selected_building_idx];
-                    let c = ((rel.x / z_grid) - (t.width as f32 / 2.0)).round() as i32;
-                    let r = ((rel.y / z_grid) - (t.height as f32 / 2.0)).round() as i32;
-                    let ghost_rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid, r as f32 * z_grid), Vec2::new(t.width as f32 * z_grid, t.height as f32 * z_grid));
-                    
-                    let is_valid = r >= 0 && c >= 0 && self.can_place_building(r as usize, c as usize, t.width, t.height, t.b_type);
-                    
-                    painter.rect_stroke(ghost_rect, 0.0, Stroke::new(2.5, if is_valid { Color32::GREEN } else { Color32::RED }));
-                    if response.clicked_by(egui::PointerButton::Primary) && is_valid {
-                        self.placed_buildings.push(PlacedBuilding { 
-                            uid: self.next_uid, 
-                            template_name: t.name.clone(), 
-                            b_type: t.b_type, 
-                            grid_x: c as usize, grid_y: r as usize, width: t.width, height: t.height, 
-                            color: t.color, wave_num: self.current_wave_num, is_late: self.current_is_late 
-                        });
-                        self.next_uid += 1;
-                    } else if response.clicked_by(egui::PointerButton::Secondary) {
+                    } else if self.mode == EditMode::Building {
+                        let t = &self.building_templates[self.selected_building_idx];
+                        let c = ((rel.x / z_grid) - (t.width as f32 / 2.0)).round() as i32;
+                        let r = ((rel.y / z_grid) - (t.height as f32 / 2.0)).round() as i32;
+                        let ghost_rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid, r as f32 * z_grid), Vec2::new(t.width as f32 * z_grid, t.height as f32 * z_grid));
+                        
+                        let is_valid = r >= 0 && c >= 0 && self.can_place_building(r as usize, c as usize, t.width, t.height, t.b_type);
+                        
+                        painter.rect_stroke(ghost_rect, 0.0, Stroke::new(2.5, if is_valid { Color32::GREEN } else { Color32::RED }));
+                        if response.clicked_by(egui::PointerButton::Primary) && is_valid {
+                            self.placed_buildings.push(PlacedBuilding { 
+                                uid: self.next_uid, 
+                                template_name: t.name.clone(), 
+                                b_type: t.b_type, 
+                                grid_x: c as usize, grid_y: r as usize, width: t.width, height: t.height, 
+                                color: t.color, wave_num: self.current_wave_num, is_late: self.current_is_late 
+                            });
+                            self.next_uid += 1;
+                        } else if response.clicked_by(egui::PointerButton::Secondary) {
+                            let (px, py) = (cx, ry);
+                            self.placed_buildings.retain(|b| !(px >= b.grid_x as i32 && px < (b.grid_x + b.width) as i32 && py >= b.grid_y as i32 && py < (b.grid_y + b.height) as i32));
+                            self.demolish_events.retain(|e| !self.placed_buildings.iter().any(|b| b.uid == e.uid));
+                        }
+                    } else if self.mode == EditMode::Demolish {
                         let (px, py) = (cx, ry);
-                        self.placed_buildings.retain(|b| !(px >= b.grid_x as i32 && px < (b.grid_x + b.width) as i32 && py >= b.grid_y as i32 && py < (b.grid_y + b.height) as i32));
-                        self.demolish_events.retain(|e| !self.placed_buildings.iter().any(|b| b.uid == e.uid));
-                    }
-                } else if self.mode == EditMode::Demolish {
-                    // ... (保持不变)
-                    let (px, py) = (cx, ry);
-                    let target = self.placed_buildings.iter().find(|b| {
-                        px >= b.grid_x as i32 && px < (b.grid_x + b.width) as i32 && py >= b.grid_y as i32 && py < (b.grid_y + b.height) as i32 &&
-                        t_current >= get_time_value(b.wave_num, b.is_late) && t_current < self.get_building_demolish_time(b.uid)
-                    });
-                    if let Some(b) = target {
-                        let r = Rect::from_min_size(origin + Vec2::new(b.grid_x as f32 * z_grid, b.grid_y as f32 * z_grid), Vec2::new(b.width as f32 * z_grid, b.height as f32 * z_grid));
-                        painter.rect_stroke(r, 0.0, Stroke::new(3.0, Color32::YELLOW));
-                        if response.clicked_by(egui::PointerButton::Primary) && !self.demolish_events.iter().any(|e| e.uid == b.uid) {
-                            self.demolish_events.push(DemolishEvent { uid: b.uid, name: b.template_name.clone(), grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height, wave_num: self.current_wave_num, is_late: self.current_is_late });
+                        let target = self.placed_buildings.iter().find(|b| {
+                            px >= b.grid_x as i32 && px < (b.grid_x + b.width) as i32 && py >= b.grid_y as i32 && py < (b.grid_y + b.height) as i32 &&
+                            t_current >= get_time_value(b.wave_num, b.is_late) && t_current < self.get_building_demolish_time(b.uid)
+                        });
+                        if let Some(b) = target {
+                            let r = Rect::from_min_size(origin + Vec2::new(b.grid_x as f32 * z_grid, b.grid_y as f32 * z_grid), Vec2::new(b.width as f32 * z_grid, b.height as f32 * z_grid));
+                            painter.rect_stroke(r, 0.0, Stroke::new(3.0, Color32::YELLOW));
+                            if response.clicked_by(egui::PointerButton::Primary) && !self.demolish_events.iter().any(|e| e.uid == b.uid) {
+                                self.demolish_events.push(DemolishEvent { uid: b.uid, name: b.template_name.clone(), grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height, wave_num: self.current_wave_num, is_late: self.current_is_late });
+                            }
                         }
                     }
                 }
+            }
+
+            // 🔥 悬浮信息栏绘制：独立在地图上方 (最后绘制以确保最上层)
+            if !self.hover_info.is_empty() && self.hover_info != "无" {
+                // 在左上角绘制
+                let info_pos = panel_rect.min + Vec2::new(10.0, 10.0);
+                let galley = painter.layout_no_wrap(self.hover_info.clone(), FontId::new(14.0, FontFamily::Monospace), Color32::WHITE);
+                
+                let bg_rect = Rect::from_min_size(info_pos, galley.size() + Vec2::new(10.0, 10.0));
+                painter.rect_filled(bg_rect, 5.0, Color32::from_black_alpha(180));
+                // 修复：添加了第三个参数 fallback_color
+                painter.galley(info_pos + Vec2::new(5.0, 5.0), galley, Color32::WHITE);
             }
         });
     }
