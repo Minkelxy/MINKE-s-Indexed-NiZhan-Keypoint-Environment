@@ -2,1135 +2,141 @@
   "map_name": "Ni-Zhan_Map",
   "buildings": [
     {
-      "uid": 1000,
+      "uid": 1008,
       "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 30,
-      "grid_y": 28,
-      "width": 4,
-      "height": 4,
-      "wave_num": 1,
-      "is_late": false
-    },
-    {
-      "uid": 1001,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 28,
-      "width": 4,
-      "height": 4,
-      "wave_num": 1,
-      "is_late": false
-    },
-    {
-      "uid": 1002,
-      "name": "自修复磁暴塔",
-      "b_type": "Floor",
-      "grid_x": 38,
-      "grid_y": 26,
-      "width": 4,
-      "height": 4,
-      "wave_num": 1,
-      "is_late": false
-    },
-    {
-      "uid": 1004,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 41,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 2,
-      "is_late": false
-    },
-    {
-      "uid": 1005,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 39,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 2,
-      "is_late": false
-    },
-    {
-      "uid": 1006,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 30,
-      "grid_y": 28,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1007,
-      "name": "修理站",
       "b_type": "Floor",
       "grid_x": 32,
-      "grid_y": 28,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1008,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 34,
-      "grid_y": 28,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
+      "grid_y": 32,
+      "width": 4,
+      "height": 4,
+      "wave_num": 1,
       "is_late": false
     },
     {
       "uid": 1009,
-      "name": "修理站",
+      "name": "破坏者",
       "b_type": "Floor",
       "grid_x": 44,
-      "grid_y": 28,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1010,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 28,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1011,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 48,
-      "grid_y": 28,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1012,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 28,
-      "grid_y": 28,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1013,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 28,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1014,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 30,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1015,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 32,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1016,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 34,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1018,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 44,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1019,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1020,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 48,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1021,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 50,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1022,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 50,
-      "grid_y": 28,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1026,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 24,
-      "grid_y": 52,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1030,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 54,
-      "grid_y": 52,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1031,
-      "name": "自修复磁暴塔",
-      "b_type": "Floor",
-      "grid_x": 20,
-      "grid_y": 66,
+      "grid_y": 32,
       "width": 4,
       "height": 4,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1032,
-      "name": "自修复磁暴塔",
-      "b_type": "Floor",
-      "grid_x": 56,
-      "grid_y": 66,
-      "width": 4,
-      "height": 4,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1033,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 24,
-      "grid_y": 58,
-      "width": 4,
-      "height": 4,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1034,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 52,
-      "grid_y": 58,
-      "width": 4,
-      "height": 4,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1035,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 22,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1036,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 56,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1037,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 26,
-      "grid_y": 50,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1038,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 32,
-      "grid_y": 49,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1039,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 49,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1040,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 52,
-      "grid_y": 50,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1041,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 26,
-      "grid_y": 52,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1042,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 52,
-      "grid_y": 52,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1043,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 28,
-      "grid_y": 49,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1044,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 30,
-      "grid_y": 49,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1045,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 34,
-      "grid_y": 49,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1046,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 44,
-      "grid_y": 49,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1047,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 48,
-      "grid_y": 49,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1048,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 50,
-      "grid_y": 49,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1049,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 24,
-      "grid_y": 54,
-      "width": 4,
-      "height": 4,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1050,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 52,
-      "grid_y": 54,
-      "width": 4,
-      "height": 4,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1051,
-      "name": "自修复磁暴塔",
-      "b_type": "Floor",
-      "grid_x": 16,
-      "grid_y": 66,
-      "width": 4,
-      "height": 4,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1052,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 18,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1053,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 60,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1054,
-      "name": "自修复磁暴塔",
-      "b_type": "Floor",
-      "grid_x": 60,
-      "grid_y": 66,
-      "width": 4,
-      "height": 4,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1055,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 24,
-      "grid_y": 62,
-      "width": 4,
-      "height": 4,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1056,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 52,
-      "grid_y": 62,
-      "width": 4,
-      "height": 4,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1057,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 48,
-      "grid_y": 62,
-      "width": 4,
-      "height": 4,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1058,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 28,
-      "grid_y": 62,
-      "width": 4,
-      "height": 4,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1059,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 28,
-      "grid_y": 56,
-      "width": 2,
-      "height": 2,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1060,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 30,
-      "grid_y": 56,
-      "width": 2,
-      "height": 2,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1061,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 24,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1062,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 26,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1063,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 54,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1064,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 52,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1065,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 50,
-      "grid_y": 56,
-      "width": 2,
-      "height": 2,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1067,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 48,
-      "grid_y": 56,
-      "width": 2,
-      "height": 2,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1070,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 48,
-      "grid_y": 58,
-      "width": 4,
-      "height": 4,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1071,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 28,
-      "grid_y": 58,
-      "width": 4,
-      "height": 4,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1072,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 26,
-      "grid_y": 66,
-      "width": 4,
-      "height": 4,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1073,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 50,
-      "grid_y": 66,
-      "width": 4,
-      "height": 4,
-      "wave_num": 5,
-      "is_late": false
-    },
-    {
-      "uid": 1074,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 66,
-      "width": 4,
-      "height": 4,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1075,
-      "name": "破坏者",
-      "b_type": "Floor",
-      "grid_x": 30,
-      "grid_y": 66,
-      "width": 4,
-      "height": 4,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1076,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 32,
-      "grid_y": 64,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1077,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 32,
-      "grid_y": 62,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1078,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 32,
-      "grid_y": 60,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1079,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 32,
-      "grid_y": 58,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1080,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 32,
-      "grid_y": 56,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1081,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 56,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1082,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 58,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1083,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 60,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1084,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 62,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1085,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 64,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1086,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 28,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1087,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 30,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1088,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 32,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1089,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 50,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1090,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 48,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1091,
-      "name": "防空导弹",
-      "b_type": "Floor",
-      "grid_x": 46,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1092,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 16,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1095,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 62,
-      "grid_y": 70,
-      "width": 2,
-      "height": 2,
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "uid": 1096,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 37,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
       "wave_num": 1,
       "is_late": false
     },
     {
-      "uid": 1097,
-      "name": "防空导弹",
+      "uid": 1010,
+      "name": "自修复磁暴塔",
       "b_type": "Floor",
-      "grid_x": 24,
-      "grid_y": 50,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
+      "grid_x": 36,
+      "grid_y": 28,
+      "width": 4,
+      "height": 4,
+      "wave_num": 1,
       "is_late": false
     },
     {
-      "uid": 1098,
-      "name": "防空导弹",
+      "uid": 1011,
+      "name": "自修复磁暴塔",
       "b_type": "Floor",
-      "grid_x": 54,
-      "grid_y": 50,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
+      "grid_x": 40,
+      "grid_y": 28,
+      "width": 4,
+      "height": 4,
+      "wave_num": 1,
       "is_late": false
     },
     {
-      "uid": 1099,
+      "uid": 1014,
+      "name": "破坏者",
+      "b_type": "Floor",
+      "grid_x": 28,
+      "grid_y": 32,
+      "width": 4,
+      "height": 4,
+      "wave_num": 2,
+      "is_late": true
+    },
+    {
+      "uid": 1015,
+      "name": "破坏者",
+      "b_type": "Floor",
+      "grid_x": 48,
+      "grid_y": 32,
+      "width": 4,
+      "height": 4,
+      "wave_num": 2,
+      "is_late": true
+    },
+    {
+      "uid": 1016,
       "name": "修理站",
       "b_type": "Floor",
-      "grid_x": 20,
-      "grid_y": 70,
+      "grid_x": 37,
+      "grid_y": 32,
       "width": 2,
       "height": 2,
-      "wave_num": 3,
-      "is_late": false
+      "wave_num": 2,
+      "is_late": true
     },
     {
-      "uid": 1100,
+      "uid": 1017,
       "name": "修理站",
       "b_type": "Floor",
-      "grid_x": 58,
-      "grid_y": 70,
+      "grid_x": 39,
+      "grid_y": 32,
       "width": 2,
       "height": 2,
-      "wave_num": 3,
-      "is_late": false
+      "wave_num": 2,
+      "is_late": true
     },
     {
-      "uid": 1101,
+      "uid": 1018,
       "name": "修理站",
       "b_type": "Floor",
-      "grid_x": 24,
-      "grid_y": 48,
+      "grid_x": 41,
+      "grid_y": 32,
       "width": 2,
       "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1102,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 26,
-      "grid_y": 48,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1103,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 52,
-      "grid_y": 48,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "uid": 1104,
-      "name": "修理站",
-      "b_type": "Floor",
-      "grid_x": 54,
-      "grid_y": 48,
-      "width": 2,
-      "height": 2,
-      "wave_num": 4,
-      "is_late": false
+      "wave_num": 2,
+      "is_late": true
     }
   ],
   "upgrades": [
     {
       "building_name": "破坏者",
       "wave_num": 2,
-      "is_late": false
-    },
-    {
-      "building_name": "防空导弹",
-      "wave_num": 3,
-      "is_late": false
+      "is_late": true
     },
     {
       "building_name": "自修复磁暴塔",
       "wave_num": 3,
-      "is_late": false
+      "is_late": true
     },
     {
-      "building_name": "防空导弹",
+      "building_name": "破坏者",
+      "wave_num": 3,
+      "is_late": true
+    },
+    {
+      "building_name": "破坏者",
       "wave_num": 4,
-      "is_late": false
-    },
-    {
-      "building_name": "破坏者",
-      "wave_num": 5,
-      "is_late": false
+      "is_late": true
     },
     {
       "building_name": "自修复磁暴塔",
-      "wave_num": 5,
-      "is_late": false
+      "wave_num": 4,
+      "is_late": true
     },
     {
       "building_name": "自修复磁暴塔",
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "building_name": "破坏者",
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "building_name": "防空导弹",
-      "wave_num": 6,
-      "is_late": false
+      "wave_num": 4,
+      "is_late": true
     },
     {
       "building_name": "修理站",
-      "wave_num": 6,
-      "is_late": false
-    },
-    {
-      "building_name": "修理站",
-      "wave_num": 6,
-      "is_late": false
+      "wave_num": 4,
+      "is_late": true
     }
   ],
-  "demolishes": [
-    {
-      "uid": 1000,
-      "name": "破坏者",
-      "grid_x": 30,
-      "grid_y": 28,
-      "width": 4,
-      "height": 4,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1002,
-      "name": "自修复磁暴塔",
-      "grid_x": 38,
-      "grid_y": 26,
-      "width": 4,
-      "height": 4,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1005,
-      "name": "修理站",
-      "grid_x": 39,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1004,
-      "name": "修理站",
-      "grid_x": 41,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1001,
-      "name": "破坏者",
-      "grid_x": 46,
-      "grid_y": 28,
-      "width": 4,
-      "height": 4,
-      "wave_num": 3,
-      "is_late": false
-    },
-    {
-      "uid": 1096,
-      "name": "修理站",
-      "grid_x": 37,
-      "grid_y": 30,
-      "width": 2,
-      "height": 2,
-      "wave_num": 3,
-      "is_late": false
-    }
-  ]
+  "demolishes": []
 }
