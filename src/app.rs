@@ -621,8 +621,11 @@ impl eframe::App for MapEditor {
                             self.next_uid += 1;
                         } else if response.clicked_by(egui::PointerButton::Secondary) {
                             let (px, py) = (cx, ry);
+                            // 1. 先从地图上移除被点击的建筑
                             self.placed_buildings.retain(|b| !(px >= b.grid_x as i32 && px < (b.grid_x + b.width) as i32 && py >= b.grid_y as i32 && py < (b.grid_y + b.height) as i32));
-                            self.demolish_events.retain(|e| !self.placed_buildings.iter().any(|b| b.uid == e.uid));
+                            
+                            // 2. 然后清理无效的拆除计划（只保留那些 UID 依然存在于 placed_buildings 中的事件）
+                            self.demolish_events.retain(|e| self.placed_buildings.iter().any(|b| b.uid == e.uid));
                         }
                     } else if self.mode == EditMode::Demolish {
                         let (px, py) = (cx, ry);
