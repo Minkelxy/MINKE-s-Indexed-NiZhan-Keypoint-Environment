@@ -1,12 +1,16 @@
 [
   {
     "name": "空间站",
-    "image_path": "maps/空间站.png",
-    "terrain_path": "maps/空间站.json"
+    "image_path": "maps/空间站/空间站.png",
+    "terrain_path": "maps/空间站/空间站地图.json",
+    "building_configs_path": "maps/空间站/空间站防御塔列表.json",
+    "strategy_path": "maps/空间站/空间站策略.json"
   },
   {
     "name": "20号星港",
-    "image_path": "maps/20号星港.png",
-    "terrain_path": "maps/20号星港.json"
+    "image_path": "maps/20号星港/20号星港.png",
+    "terrain_path": "maps/20号星港/20号星港地图.json",
+    "building_configs_path": "maps/20号星港/20号星港防御塔列表.json",
+    "strategy_path": "maps/20号星港/20号星港策略.json"
   }
 ]

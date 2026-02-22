@@ -121,6 +121,9 @@ impl MapEditor {
     fn apply_preset(&mut self, ctx: &egui::Context, preset: &MapPreset) {
         let image_p = fix_path(&preset.image_path);
         let terrain_p = fix_path(&preset.terrain_path);
+        let building_configs_p = fix_path(&preset.building_configs_path);
+        let strategy_p = fix_path(&preset.strategy_path);
+        
         if let Ok(img_reader) = ImageReader::open(&image_p) {
             if let Ok(img) = img_reader.decode() {
                 let size = [img.width() as _, img.height() as _];
@@ -149,6 +152,47 @@ impl MapEditor {
                 }
                 self.resize_grids();
                 self.map_filename = Path::new(&terrain_p).file_name().unwrap().to_string_lossy().into();
+            }
+        }
+        
+        // 加载建筑列表
+        if let Ok(content) = fs::read_to_string(&building_configs_p) {
+            if let Ok(data) = serde_json::from_str::<Vec<BuildingConfig>>(&content) {
+                self.building_configs = data;
+                // 更新建筑模板
+                self.building_templates = self.building_configs.iter().map(|config| {
+                    BuildingTemplate {
+                        name: config.name.clone(),
+                        b_type: config.b_type,
+                        width: config.width,
+                        height: config.height,
+                        color: Color32::from_rgba_unmultiplied(
+                            config.color[0], config.color[1], 
+                            config.color[2], config.color[3]
+                        ),
+                        icon: None, // 图标需要重新加载
+                    }
+                }).collect();
+            }
+        }
+        
+        // 加载策略
+        if let Ok(content) = fs::read_to_string(&strategy_p) {
+            if let Ok(data) = serde_json::from_str::<MapBuildingsExport>(&content) {
+                self.placed_buildings = data.buildings.iter().map(|b| {
+                    let template = self.building_templates.iter().find(|t| t.name == b.name);
+                    let color = template.map(|t| t.color).unwrap_or(Color32::GRAY);
+                    PlacedBuilding { 
+                        uid: b.uid, 
+                        template_name: b.name.clone(), 
+                        b_type: b.b_type,
+                        grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height, 
+                        color, wave_num: b.wave_num, is_late: b.is_late 
+                    }
+                }).collect();
+                self.next_uid = self.placed_buildings.iter().map(|b| b.uid).max().unwrap_or(1000) + 1;
+                self.upgrade_events = data.upgrades;
+                self.demolish_events = data.demolishes; 
             }
         }
     }
@@ -273,9 +317,37 @@ impl MapEditor {
         }
     }
 
+    fn import_building_configs(&mut self) {
+        if let Some(path) = FileDialog::new().set_directory("output").add_filter("JSON防御塔列表", &["json"]).pick_file() {
+            if let Ok(content) = fs::read_to_string(path) {
+                if let Ok(data) = serde_json::from_str::<Vec<BuildingConfig>>(&content) {
+                    self.building_configs = data;
+                    // 更新建筑模板
+                    self.building_templates = self.building_configs.iter().map(|config| {
+                        BuildingTemplate {
+                            name: config.name.clone(),
+                            b_type: config.b_type,
+                            width: config.width,
+                            height: config.height,
+                            color: Color32::from_rgba_unmultiplied(
+                                config.color[0], config.color[1], 
+                                config.color[2], config.color[3]
+                            ),
+                            icon: None, // 图标需要重新加载
+                        }
+                    }).collect();
+                }
+            }
+        }
+    }
+
     fn export_terrain(&self) {
-        let _ = fs::create_dir_all("output");
-        let out = PathBuf::from("output").join(&self.map_filename);
+        // 从map_filename中提取地图名称（去除.json扩展名）
+        let map_name = self.map_filename.split('.').next().unwrap_or("地图");
+        let export_dir = PathBuf::from("output").join(map_name);
+        let _ = fs::create_dir_all(&export_dir);
+        
+        let out = export_dir.join(format!("{}地图.json", map_name));
         let meta = MapMeta { 
             grid_pixel_width: self.grid_width, 
             grid_pixel_height: self.grid_height, 
@@ -290,11 +362,15 @@ impl MapEditor {
         };
         let mut layers: Vec<LayerData> = self.layers_data.values().cloned().collect();
         layers.sort_by_key(|l| l.major_z);
-        if let Ok(json) = serde_json::to_string_pretty(&MapTerrainExport { map_name: "Ni-Zhan_Map".into(), meta, layers }) { let _ = fs::write(out, json); }
+        if let Ok(json) = serde_json::to_string_pretty(&MapTerrainExport { map_name: map_name.to_string(), meta, layers }) { let _ = fs::write(out, json); }
     }
 
     fn export_buildings(&self) {
-        let _ = fs::create_dir_all("output");
+        // 从map_filename中提取地图名称（去除.json扩展名）
+        let map_name = self.map_filename.split('.').next().unwrap_or("地图");
+        let export_dir = PathBuf::from("output").join(map_name);
+        let _ = fs::create_dir_all(&export_dir);
+        
         let b_exp: Vec<BuildingExport> = self.placed_buildings.iter().map(|b| BuildingExport { 
             uid: b.uid, 
             name: b.template_name.clone(),
@@ -302,8 +378,8 @@ impl MapEditor {
             grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height, 
             wave_num: b.wave_num, is_late: b.is_late 
         }).collect();
-        let out = PathBuf::from("output").join(&self.building_filename);
-        if let Ok(json) = serde_json::to_string_pretty(&MapBuildingsExport { map_name: "Ni-Zhan_Map".into(), buildings: b_exp, upgrades: self.upgrade_events.clone(), demolishes: self.demolish_events.clone() }) { let _ = fs::write(out, json); }
+        let out = export_dir.join(format!("{}策略.json", map_name));
+        if let Ok(json) = serde_json::to_string_pretty(&MapBuildingsExport { map_name: map_name.to_string(), buildings: b_exp, upgrades: self.upgrade_events.clone(), demolishes: self.demolish_events.clone() }) { let _ = fs::write(out, json); }
     }
 
     fn show_building_config_ui(&mut self, ui: &mut egui::Ui) {
@@ -311,10 +387,13 @@ impl MapEditor {
             cols[0].vertical(|ui| {
                 ui.horizontal(|ui| {
                     if ui.button("保存配置").clicked() {
-                        let _ = fs::create_dir_all("output");
-                        if let Ok(json) = serde_json::to_string_pretty(&self.building_configs) {
-                            let _ = fs::write("output/buildings_config.json", json);
-                        }
+                        // 从map_filename中提取地图名称（去除.json扩展名）
+                        let map_name = self.map_filename.split('.').next().unwrap_or("地图");
+                        let export_dir = PathBuf::from("output").join(map_name);
+                        let _ = fs::create_dir_all(&export_dir);
+                        
+                        let out = export_dir.join(format!("{}防御塔列表.json", map_name));
+                        if let Ok(json) = serde_json::to_string_pretty(&self.building_configs) { let _ = fs::write(out, json); }
                     }
                     if ui.button("添加建筑").clicked() {
                         self.building_configs.push(BuildingConfig {
@@ -693,13 +772,28 @@ impl eframe::App for MapEditor {
                 ui.set_min_width(ui.available_width());
                 ui.label("数据存取 (output/):");
                 ui.vertical_centered_justified(|ui| {
+                    ui.label("地图名称:");
                     ui.text_edit_singleline(&mut self.map_filename);
-                    if ui.button("导出地形 JSON").clicked() { self.export_terrain(); }
-                    ui.text_edit_singleline(&mut self.building_filename);
-                    if ui.button("导出策略 JSON").clicked() { self.export_buildings(); }
                     ui.separator();
-                    if ui.button("导入地形文件").clicked() { self.import_terrain(); } 
+                    
+                    if ui.button("导出地形 JSON").clicked() { self.export_terrain(); }
+                    if ui.button("导入地形文件").clicked() { self.import_terrain(); }
+                    ui.separator();
+                    
+                    if ui.button("导出策略 JSON").clicked() { self.export_buildings(); }
                     if ui.button("导入策略文件").clicked() { self.import_buildings(); }
+                    ui.separator();
+                    
+                    if ui.button("导出防御塔列表").clicked() {
+                        // 从map_filename中提取地图名称（去除.json扩展名）
+                        let map_name = self.map_filename.split('.').next().unwrap_or("地图");
+                        let export_dir = PathBuf::from("output").join(map_name);
+                        let _ = fs::create_dir_all(&export_dir);
+                        
+                        let out = export_dir.join(format!("{}防御塔列表.json", map_name));
+                        if let Ok(json) = serde_json::to_string_pretty(&self.building_configs) { let _ = fs::write(out, json); }
+                    }
+                    if ui.button("导入防御塔列表").clicked() { self.import_building_configs(); }
                 });
             });
         });

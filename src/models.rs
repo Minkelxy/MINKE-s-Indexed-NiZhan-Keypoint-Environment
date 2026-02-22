@@ -223,6 +223,8 @@ pub struct MapPreset {
     pub name: String,
     pub image_path: String,
     pub terrain_path: String,
+    pub building_configs_path: String,
+    pub strategy_path: String,
 }
 
 #[derive(Clone)]
