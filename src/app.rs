@@ -286,6 +286,7 @@ impl MapEditor {
                     self.camera_speed_down = data.meta.camera_speed_down;
                     self.camera_speed_left = data.meta.camera_speed_left;
                     self.camera_speed_right = data.meta.camera_speed_right;
+                    self.viewport_safe_areas = data.meta.viewport_safe_areas.iter().map(|a| (*a).into()).collect();
                     self.layers_data.clear();
                     for mut layer in data.layers {
                         layer.normalize();
@@ -349,7 +350,6 @@ impl MapEditor {
     }
 
     fn export_terrain(&self) {
-        // 从map_filename中提取地图名称（去除.json扩展名）
         let map_name = self.map_filename.split('.').next().unwrap_or("地图");
         let export_dir = PathBuf::from("output").join(map_name);
         let _ = fs::create_dir_all(&export_dir);
@@ -366,6 +366,7 @@ impl MapEditor {
             camera_speed_down: self.camera_speed_down,
             camera_speed_left: self.camera_speed_left,
             camera_speed_right: self.camera_speed_right,
+            viewport_safe_areas: self.viewport_safe_areas.iter().map(|r| (*r).into()).collect(),
         };
         let mut layers: Vec<LayerData> = self.layers_data.values().cloned().collect();
         layers.sort_by_key(|l| l.major_z);
@@ -649,8 +650,102 @@ impl eframe::App for MapEditor {
                     ui.add(egui::Slider::new(&mut self.brush_radius, 0..=10).text("笔刷半径"));
                 });
 
+                ui.add_space(10.0);
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.label("网格和镜头设置:");
+                    ui.horizontal(|ui| { 
+                        ui.label("网格宽:"); ui.add(egui::DragValue::new(&mut self.grid_width).speed(0.1)); 
+                        ui.label("网格高:"); ui.add(egui::DragValue::new(&mut self.grid_height).speed(0.1)); 
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("偏移 X:"); ui.add(egui::DragValue::new(&mut self.offset_x).speed(1.0));
+                        ui.label("偏移 Y:"); ui.add(egui::DragValue::new(&mut self.offset_y).speed(1.0));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("底图高度:"); ui.add(egui::DragValue::new(&mut self.map_bottom).speed(1.0));
+                        ui.label("底图宽度:"); ui.add(egui::DragValue::new(&mut self.map_right).speed(1.0));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("网格行列:");
+                        if ui.add(egui::DragValue::new(&mut self.grid_rows)).changed() { self.resize_grids(); }
+                        if ui.add(egui::DragValue::new(&mut self.grid_cols)).changed() { self.resize_grids(); }
+                    });
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label("镜头速度上:"); ui.add(egui::DragValue::new(&mut self.camera_speed_up).speed(0.1));
+                        ui.label("镜头速度下:"); ui.add(egui::DragValue::new(&mut self.camera_speed_down).speed(0.1));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("镜头速度左:"); ui.add(egui::DragValue::new(&mut self.camera_speed_left).speed(0.1));
+                        ui.label("镜头速度右:"); ui.add(egui::DragValue::new(&mut self.camera_speed_right).speed(0.1));
+                    });
+                    ui.vertical_centered_justified(|ui| { if ui.button("加载自定义地图底图").clicked() { self.pick_and_load_image(ctx); } });
+                    ui.separator();
+                    ui.label("观察框安全区域 (多个矩形):");
+                    ui.horizontal(|ui| {
+                        if ui.button("添加区域").clicked() {
+                            self.viewport_safe_areas.push(Rect::from_min_max(Pos2::ZERO, Pos2::ZERO));
+                        }
+                        if ui.button("清空区域").clicked() {
+                            self.viewport_safe_areas.clear();
+                        }
+                    });
+                    ui.separator();
+                    let mut remove_idx = None;
+                    egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                        for i in 0..self.viewport_safe_areas.len() {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("区域{}:", i));
+                                ui.label("X1:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].min.x).speed(1.0));
+                                ui.label("Y1:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].min.y).speed(1.0));
+                                ui.label("X2:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].max.x).speed(1.0));
+                                ui.label("Y2:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].max.y).speed(1.0));
+                                if ui.button("×").clicked() { remove_idx = Some(i); }
+                            });
+                        }
+                    });
+                    if let Some(idx) = remove_idx {
+                        self.viewport_safe_areas.remove(idx);
+                    }
+                });
+
+                ui.add_space(10.0);
+
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.label("数据存取:");
+                    ui.vertical_centered_justified(|ui| {
+                        ui.label("地图名称:");
+                        ui.text_edit_singleline(&mut self.map_filename);
+                        ui.separator();
+                        
+                        if ui.button("导出全部数据").clicked() {
+                            self.export_terrain();
+                            self.export_buildings();
+                            let map_name = self.map_filename.split('.').next().unwrap_or("地图");
+                            let export_dir = PathBuf::from("output").join(map_name);
+                            let _ = fs::create_dir_all(&export_dir);
+                            let out = export_dir.join(format!("{}防御塔列表.json", map_name));
+                            if let Ok(json) = serde_json::to_string_pretty(&self.building_configs) { let _ = fs::write(out, json); }
+                        }
+                        if ui.button("导入地形文件").clicked() { self.import_terrain(); }
+                        if ui.button("导入策略文件").clicked() { self.import_buildings(); }
+                        if ui.button("导入防御塔列表").clicked() { self.import_building_configs(); }
+                    });
+                });
+
             } else if self.mode == EditMode::Building {
-                 ui.group(|ui| {
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.label("波次设置:");
+                    ui.horizontal(|ui| {
+                        ui.label("当前波次:");
+                        ui.add(egui::DragValue::new(&mut self.current_wave_num).clamp_range(1..=100));
+                        ui.checkbox(&mut self.current_is_late, "后期");
+                    });
+                });
+                ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("选择建筑物:");
                     egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
@@ -729,97 +824,6 @@ impl eframe::App for MapEditor {
                     if let Some(idx) = delete_idx { self.demolish_events.remove(idx); }
                 });
             }
-
-            ui.add_space(10.0);
-            ui.group(|ui| {
-                ui.set_min_width(ui.available_width());
-                ui.label("网格和镜头设置:");
-                ui.horizontal(|ui| { 
-                    ui.label("网格宽:"); ui.add(egui::DragValue::new(&mut self.grid_width).speed(0.1)); 
-                    ui.label("网格高:"); ui.add(egui::DragValue::new(&mut self.grid_height).speed(0.1)); 
-                });
-                ui.horizontal(|ui| {
-                    ui.label("偏移 X:"); ui.add(egui::DragValue::new(&mut self.offset_x).speed(1.0));
-                    ui.label("偏移 Y:"); ui.add(egui::DragValue::new(&mut self.offset_y).speed(1.0));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("底图高度:"); ui.add(egui::DragValue::new(&mut self.map_bottom).speed(1.0));
-                    ui.label("底图宽度:"); ui.add(egui::DragValue::new(&mut self.map_right).speed(1.0));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("网格行列:");
-                    if ui.add(egui::DragValue::new(&mut self.grid_rows)).changed() { self.resize_grids(); }
-                    if ui.add(egui::DragValue::new(&mut self.grid_cols)).changed() { self.resize_grids(); }
-                });
-                ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("镜头速度上:"); ui.add(egui::DragValue::new(&mut self.camera_speed_up).speed(0.1));
-                    ui.label("镜头速度下:"); ui.add(egui::DragValue::new(&mut self.camera_speed_down).speed(0.1));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("镜头速度左:"); ui.add(egui::DragValue::new(&mut self.camera_speed_left).speed(0.1));
-                    ui.label("镜头速度右:"); ui.add(egui::DragValue::new(&mut self.camera_speed_right).speed(0.1));
-                });
-                ui.vertical_centered_justified(|ui| { if ui.button("加载自定义地图底图").clicked() { self.pick_and_load_image(ctx); } });
-                ui.separator();
-                ui.label("观察框安全区域 (多个矩形):");
-                ui.horizontal(|ui| {
-                    if ui.button("添加区域").clicked() {
-                        self.viewport_safe_areas.push(Rect::from_min_max(Pos2::ZERO, Pos2::ZERO));
-                    }
-                    if ui.button("清空区域").clicked() {
-                        self.viewport_safe_areas.clear();
-                    }
-                });
-                ui.separator();
-                let mut remove_idx = None;
-                egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                    for i in 0..self.viewport_safe_areas.len() {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("区域{}:", i));
-                            ui.label("X1:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].min.x).speed(1.0));
-                            ui.label("Y1:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].min.y).speed(1.0));
-                            ui.label("X2:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].max.x).speed(1.0));
-                            ui.label("Y2:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].max.y).speed(1.0));
-                            if ui.button("×").clicked() { remove_idx = Some(i); }
-                        });
-                    }
-                });
-                if let Some(idx) = remove_idx {
-                    self.viewport_safe_areas.remove(idx);
-                }
-            });
-
-            ui.add_space(10.0);
-
-            ui.group(|ui| {
-                ui.set_min_width(ui.available_width());
-                ui.label("数据存取 (output/):");
-                ui.vertical_centered_justified(|ui| {
-                    ui.label("地图名称:");
-                    ui.text_edit_singleline(&mut self.map_filename);
-                    ui.separator();
-                    
-                    if ui.button("导出地形 JSON").clicked() { self.export_terrain(); }
-                    if ui.button("导入地形文件").clicked() { self.import_terrain(); }
-                    ui.separator();
-                    
-                    if ui.button("导出策略 JSON").clicked() { self.export_buildings(); }
-                    if ui.button("导入策略文件").clicked() { self.import_buildings(); }
-                    ui.separator();
-                    
-                    if ui.button("导出防御塔列表").clicked() {
-                        // 从map_filename中提取地图名称（去除.json扩展名）
-                        let map_name = self.map_filename.split('.').next().unwrap_or("地图");
-                        let export_dir = PathBuf::from("output").join(map_name);
-                        let _ = fs::create_dir_all(&export_dir);
-                        
-                        let out = export_dir.join(format!("{}防御塔列表.json", map_name));
-                        if let Ok(json) = serde_json::to_string_pretty(&self.building_configs) { let _ = fs::write(out, json); }
-                    }
-                    if ui.button("导入防御塔列表").clicked() { self.import_building_configs(); }
-                });
-            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

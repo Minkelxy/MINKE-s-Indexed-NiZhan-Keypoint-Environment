@@ -1,5 +1,33 @@
 use serde::{Deserialize, Serialize, Deserializer};
-use eframe::egui::{Color32, TextureHandle};
+use eframe::egui::{Color32, TextureHandle, Rect, Pos2};
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+pub struct SafeArea {
+    pub min_x: f32,
+    pub min_y: f32,
+    pub max_x: f32,
+    pub max_y: f32,
+}
+
+impl From<Rect> for SafeArea {
+    fn from(rect: Rect) -> Self {
+        SafeArea {
+            min_x: rect.min.x,
+            min_y: rect.min.y,
+            max_x: rect.max.x,
+            max_y: rect.max.y,
+        }
+    }
+}
+
+impl From<SafeArea> for Rect {
+    fn from(area: SafeArea) -> Self {
+        Rect::from_min_max(
+            Pos2::new(area.min_x, area.min_y),
+            Pos2::new(area.max_x, area.max_y)
+        )
+    }
+}
 
 #[derive(Serialize, Clone)]
 pub struct MapMeta {
@@ -19,6 +47,8 @@ pub struct MapMeta {
     pub camera_speed_left: f32,
     #[serde(default)]
     pub camera_speed_right: f32,
+    #[serde(default)]
+    pub viewport_safe_areas: Vec<SafeArea>,
 }
 
 #[derive(Deserialize)]
@@ -35,6 +65,7 @@ struct MapMetaLegacy {
     camera_speed_down: Option<f32>,
     camera_speed_left: Option<f32>,
     camera_speed_right: Option<f32>,
+    viewport_safe_areas: Option<Vec<SafeArea>>,
 }
 
 impl Default for MapMetaLegacy {
@@ -51,6 +82,7 @@ impl Default for MapMetaLegacy {
             camera_speed_down: None,
             camera_speed_left: None,
             camera_speed_right: None,
+            viewport_safe_areas: None,
         }
     }
 }
@@ -89,6 +121,7 @@ impl<'de> Deserialize<'de> for MapMeta {
             camera_speed_down: legacy.camera_speed_down.unwrap_or(1.0),
             camera_speed_left: legacy.camera_speed_left.unwrap_or(1.0),
             camera_speed_right: legacy.camera_speed_right.unwrap_or(1.0),
+            viewport_safe_areas: legacy.viewport_safe_areas.unwrap_or_default(),
         })
     }
 }
