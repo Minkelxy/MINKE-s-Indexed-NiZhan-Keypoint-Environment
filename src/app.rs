@@ -36,7 +36,6 @@ pub struct MapEditor {
     pub(crate) placed_buildings: Vec<PlacedBuilding>,
     pub(crate) next_uid: usize,
     pub(crate) map_filename: String,
-    pub(crate) building_filename: String,
     pub(crate) presets: Vec<MapPreset>,
     pub current_wave_num: i32,
     pub current_is_late: bool,
@@ -45,6 +44,10 @@ pub struct MapEditor {
     pub(crate) hover_info: String,
     pub(crate) building_configs: Vec<BuildingConfig>,
     pub(crate) editing_building_idx: Option<usize>,
+    pub(crate) viewport_pos: Vec2,
+    pub(crate) viewport_width: f32,
+    pub(crate) viewport_height: f32,
+    pub(crate) viewport_safe_areas: Vec<Rect>,
 }
 
 impl MapEditor {
@@ -97,12 +100,16 @@ impl MapEditor {
             zoom: 1.0, pan: Vec2::ZERO, mode: EditMode::Terrain,
             building_templates: b_templates, selected_building_idx: 0, selected_upgrade_target_idx: 0,
             placed_buildings: Vec::new(), next_uid: 1000,
-            map_filename: "terrain_01.json".to_string(), building_filename: "strategy_01.json".to_string(),
+            map_filename: "terrain_01.json".to_string(),
             presets: map_presets, current_wave_num: 1, current_is_late: false,
             upgrade_events: Vec::new(), demolish_events: Vec::new(),
             hover_info: String::new(),
             building_configs: b_configs,
             editing_building_idx: None,
+            viewport_pos: Vec2::ZERO,
+            viewport_width: 1920.0,
+            viewport_height: 1080.0,
+            viewport_safe_areas: Vec::new(),
         };
 
         let default_grid = vec![vec![-1; 40]; 40];
@@ -599,15 +606,6 @@ impl eframe::App for MapEditor {
 
             // 侧边栏移除了 "当前状态监视"，改为悬浮绘制
 
-            ui.group(|ui| {
-                ui.set_min_width(ui.available_width());
-                ui.label("关卡预设:");
-                ui.vertical_centered_justified(|ui| {
-                    for (i, preset) in self.presets.clone().iter().enumerate() {
-                        ui.push_id(i, |ui| { if ui.button(format!("加载: {}", preset.name)).clicked() { self.apply_preset(ctx, preset); } });
-                    }
-                });
-            });
             ui.separator();
             ui.columns(5, |cols| {
                 cols[0].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Terrain, "地形"); });
@@ -616,17 +614,19 @@ impl eframe::App for MapEditor {
                 cols[3].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Demolish, "拆除"); });
                 cols[4].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::BuildingConfig, "建筑"); });
             });
-            ui.group(|ui| {
-                ui.set_min_width(ui.available_width());
-                ui.label("时间轴控制:");
-                ui.horizontal(|ui| {
-                    ui.label("当前波次:");
-                    ui.add(egui::DragValue::new(&mut self.current_wave_num).speed(1).clamp_range(1..=100));
-                    ui.checkbox(&mut self.current_is_late, "后期");
-                });
-            });
 
             if self.mode == EditMode::Terrain {
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.label("关卡预设:");
+                    ui.vertical_centered_justified(|ui| {
+                        for (i, preset) in self.presets.clone().iter().enumerate() {
+                            ui.push_id(i, |ui| { if ui.button(format!("加载: {}", preset.name)).clicked() { self.apply_preset(ctx, preset); } });
+                        }
+                    });
+                });
+                ui.separator();
+                
                 ui.group(|ui| {
                     ui.set_min_width(ui.available_width());
                     ui.label("地形编辑层级:");
@@ -733,10 +733,10 @@ impl eframe::App for MapEditor {
             ui.add_space(10.0);
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
-                ui.label("网格设置:");
+                ui.label("网格和镜头设置:");
                 ui.horizontal(|ui| { 
-                    ui.label("宽度:"); ui.add(egui::DragValue::new(&mut self.grid_width).speed(0.1)); 
-                    ui.label("高度:"); ui.add(egui::DragValue::new(&mut self.grid_height).speed(0.1)); 
+                    ui.label("网格宽:"); ui.add(egui::DragValue::new(&mut self.grid_width).speed(0.1)); 
+                    ui.label("网格高:"); ui.add(egui::DragValue::new(&mut self.grid_height).speed(0.1)); 
                 });
                 ui.horizontal(|ui| {
                     ui.label("偏移 X:"); ui.add(egui::DragValue::new(&mut self.offset_x).speed(1.0));
@@ -751,22 +751,46 @@ impl eframe::App for MapEditor {
                     if ui.add(egui::DragValue::new(&mut self.grid_rows)).changed() { self.resize_grids(); }
                     if ui.add(egui::DragValue::new(&mut self.grid_cols)).changed() { self.resize_grids(); }
                 });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("镜头速度上:"); ui.add(egui::DragValue::new(&mut self.camera_speed_up).speed(0.1));
+                    ui.label("镜头速度下:"); ui.add(egui::DragValue::new(&mut self.camera_speed_down).speed(0.1));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("镜头速度左:"); ui.add(egui::DragValue::new(&mut self.camera_speed_left).speed(0.1));
+                    ui.label("镜头速度右:"); ui.add(egui::DragValue::new(&mut self.camera_speed_right).speed(0.1));
+                });
                 ui.vertical_centered_justified(|ui| { if ui.button("加载自定义地图底图").clicked() { self.pick_and_load_image(ctx); } });
+                ui.separator();
+                ui.label("观察框安全区域 (多个矩形):");
+                ui.horizontal(|ui| {
+                    if ui.button("添加区域").clicked() {
+                        self.viewport_safe_areas.push(Rect::from_min_max(Pos2::ZERO, Pos2::ZERO));
+                    }
+                    if ui.button("清空区域").clicked() {
+                        self.viewport_safe_areas.clear();
+                    }
+                });
+                ui.separator();
+                let mut remove_idx = None;
+                egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                    for i in 0..self.viewport_safe_areas.len() {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("区域{}:", i));
+                            ui.label("X1:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].min.x).speed(1.0));
+                            ui.label("Y1:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].min.y).speed(1.0));
+                            ui.label("X2:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].max.x).speed(1.0));
+                            ui.label("Y2:"); ui.add(egui::DragValue::new(&mut self.viewport_safe_areas[i].max.y).speed(1.0));
+                            if ui.button("×").clicked() { remove_idx = Some(i); }
+                        });
+                    }
+                });
+                if let Some(idx) = remove_idx {
+                    self.viewport_safe_areas.remove(idx);
+                }
             });
 
             ui.add_space(10.0);
-            ui.group(|ui| {
-                ui.set_min_width(ui.available_width());
-                ui.label("镜头移动速度:");
-                ui.horizontal(|ui| {
-                    ui.label("上:"); ui.add(egui::DragValue::new(&mut self.camera_speed_up).speed(0.1));
-                    ui.label("下:"); ui.add(egui::DragValue::new(&mut self.camera_speed_down).speed(0.1));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("左:"); ui.add(egui::DragValue::new(&mut self.camera_speed_left).speed(0.1));
-                    ui.label("右:"); ui.add(egui::DragValue::new(&mut self.camera_speed_right).speed(0.1));
-                });
-            });
 
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
@@ -813,6 +837,41 @@ impl eframe::App for MapEditor {
                 if scroll != 0.0 {
                     let old = self.zoom; self.zoom = (self.zoom * (1.0 + scroll * 0.001)).clamp(0.1, 10.0);
                     if let Some(pos) = input.pointer.hover_pos() { self.pan -= (pos - panel_rect.min - self.pan) * (self.zoom / old - 1.0); }
+                }
+            }
+            
+            // 观察框移动控制
+            if let Some(tex) = &self.texture {
+                let _map_width = tex.size_vec2().x;
+                let _map_height = tex.size_vec2().y;
+                
+                // 获取时间增量（秒）
+                let dt = ctx.input(|i| i.stable_dt);
+                
+                // 计算新的位置
+                let mut new_pos = self.viewport_pos;
+                if input.key_down(egui::Key::W) || input.key_down(egui::Key::ArrowUp) {
+                    new_pos.y -= self.camera_speed_up * dt;
+                }
+                if input.key_down(egui::Key::S) || input.key_down(egui::Key::ArrowDown) {
+                    new_pos.y += self.camera_speed_down * dt;
+                }
+                if input.key_down(egui::Key::A) || input.key_down(egui::Key::ArrowLeft) {
+                    new_pos.x -= self.camera_speed_left * dt;
+                }
+                if input.key_down(egui::Key::D) || input.key_down(egui::Key::ArrowRight) {
+                    new_pos.x += self.camera_speed_right * dt;
+                }
+                
+                // 检查新位置是否在任何安全区域内
+                let is_valid = self.viewport_safe_areas.iter().any(|area| {
+                    new_pos.x >= area.min.x && new_pos.x <= area.max.x &&
+                    new_pos.y >= area.min.y && new_pos.y <= area.max.y
+                });
+                
+                // 如果有效，则更新位置
+                if is_valid {
+                    self.viewport_pos = new_pos;
                 }
             }
 
@@ -1000,6 +1059,33 @@ impl eframe::App for MapEditor {
                             }
                         }
                     }
+                }
+            }
+
+            // 绘制观察框
+            if let Some(tex) = &self.texture {
+                let _map_width = tex.size_vec2().x;
+                let _map_height = tex.size_vec2().y;
+                
+                let map_origin = panel_rect.min + self.pan;
+                
+                // 绘制观察框的实际位置
+                let viewport_rect = Rect::from_min_size(
+                    map_origin + self.viewport_pos * self.zoom,
+                    Vec2::new(self.viewport_width * self.zoom, self.viewport_height * self.zoom)
+                );
+                
+                // 绘制观察框（半透明红色）
+                painter.rect_stroke(viewport_rect, 2.0, Stroke::new(2.0, Color32::from_rgba_unmultiplied(255, 0, 0, 200)));
+                painter.rect_filled(viewport_rect, 0.0, Color32::from_rgba_unmultiplied(255, 0, 0, 30));
+                
+                // 绘制观察框的可移动范围边缘线（多个黄色矩形）
+                for safe_area in &self.viewport_safe_areas {
+                    let area_rect = Rect::from_min_max(
+                        map_origin + safe_area.min.to_vec2() * self.zoom,
+                        map_origin + safe_area.max.to_vec2() * self.zoom
+                    );
+                    painter.rect_stroke(area_rect, 2.0, Stroke::new(2.0, Color32::from_rgba_unmultiplied(255, 255, 0, 150)));
                 }
             }
 

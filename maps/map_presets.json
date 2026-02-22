@@ -12,5 +12,12 @@
     "terrain_path": "maps/20号星港/20号星港地图.json",
     "building_configs_path": "maps/20号星港/20号星港防御塔列表.json",
     "strategy_path": "maps/20号星港/20号星港策略.json"
+  },
+  {
+    "name": "联盟大厦",
+    "image_path": "maps/联盟大厦/联盟大厦.png",
+    "terrain_path": "maps/联盟大厦/联盟大厦地图.json",
+    "building_configs_path": "maps/联盟大厦/联盟大厦防御塔列表.json",
+    "strategy_path": "maps/联盟大厦/联盟大厦策略.json"
   }
 ]
