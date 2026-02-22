@@ -43,6 +43,8 @@ pub struct MapEditor {
     pub(crate) upgrade_events: Vec<UpgradeEvent>,
     pub(crate) demolish_events: Vec<DemolishEvent>,
     pub(crate) hover_info: String,
+    pub(crate) building_configs: Vec<BuildingConfig>,
+    pub(crate) editing_building_idx: Option<usize>,
 }
 
 impl MapEditor {
@@ -60,8 +62,10 @@ impl MapEditor {
         };
 
         let mut b_templates = Vec::new();
+        let mut b_configs = Vec::new();
         if let Ok(config_str) = fs::read_to_string("maps/buildings_config.json") {
             if let Ok(configs) = serde_json::from_str::<Vec<BuildingConfig>>(&config_str) {
+                b_configs = configs.clone();
                 for cfg in configs {
                     b_templates.push(BuildingTemplate {
                         name: cfg.name,
@@ -97,6 +101,8 @@ impl MapEditor {
             presets: map_presets, current_wave_num: 1, current_is_late: false,
             upgrade_events: Vec::new(), demolish_events: Vec::new(),
             hover_info: String::new(),
+            building_configs: b_configs,
+            editing_building_idx: None,
         };
 
         let default_grid = vec![vec![-1; 40]; 40];
@@ -299,6 +305,211 @@ impl MapEditor {
         let out = PathBuf::from("output").join(&self.building_filename);
         if let Ok(json) = serde_json::to_string_pretty(&MapBuildingsExport { map_name: "Ni-Zhan_Map".into(), buildings: b_exp, upgrades: self.upgrade_events.clone(), demolishes: self.demolish_events.clone() }) { let _ = fs::write(out, json); }
     }
+
+    fn show_building_config_ui(&mut self, ui: &mut egui::Ui) {
+        ui.columns(2, |cols| {
+            cols[0].vertical(|ui| {
+                ui.horizontal(|ui| {
+                    if ui.button("保存配置").clicked() {
+                        let _ = fs::create_dir_all("output");
+                        if let Ok(json) = serde_json::to_string_pretty(&self.building_configs) {
+                            let _ = fs::write("output/buildings_config.json", json);
+                        }
+                    }
+                    if ui.button("添加建筑").clicked() {
+                        self.building_configs.push(BuildingConfig {
+                            name: "新建筑".to_string(),
+                            b_type: BuildingType::Floor,
+                            grid_index: [0, 0],
+                            width: 2,
+                            height: 2,
+                            color: [128, 128, 128, 255],
+                            icon_path: "maps/icons/默认.png".to_string(),
+                            cost: 100,
+                        });
+                    }
+                });
+
+                ui.separator();
+
+                let mut delete_idx = None;
+
+                egui::ScrollArea::vertical().max_height(ui.available_height() - 10.0).show(ui, |ui| {
+                    for b_type in &[BuildingType::Floor, BuildingType::Wall, BuildingType::Ceiling] {
+                        ui.group(|ui| {
+                            let type_name = match b_type {
+                                BuildingType::Floor => "地面建筑",
+                                BuildingType::Wall => "墙壁建筑",
+                                BuildingType::Ceiling => "吊顶建筑",
+                            };
+                            ui.label(type_name);
+
+                            let mut configs: Vec<_> = self.building_configs.iter()
+                                .enumerate()
+                                .filter(|(_, c)| c.b_type == *b_type)
+                                .collect();
+                            
+                            configs.sort_by(|a, b| {
+                                if a.1.grid_index[1] != b.1.grid_index[1] {
+                                    a.1.grid_index[1].cmp(&b.1.grid_index[1])
+                                } else {
+                                    a.1.grid_index[0].cmp(&b.1.grid_index[0])
+                                }
+                            });
+
+                            let mut rows = Vec::new();
+                            let mut current_row = Vec::new();
+                            let mut current_row_idx = 0;
+
+                            for (orig_idx, config) in configs.iter() {
+                                if config.grid_index[1] != current_row_idx {
+                                    if !current_row.is_empty() {
+                                        rows.push(current_row);
+                                    }
+                                    current_row = Vec::new();
+                                    current_row_idx = config.grid_index[1];
+                                }
+                                current_row.push((*orig_idx, *config));
+                            }
+                            if !current_row.is_empty() {
+                                rows.push(current_row);
+                            }
+
+                            for row in rows {
+                                ui.horizontal(|ui| {
+                                    for (orig_idx, config) in row {
+                                        ui.group(|ui| {
+                                            ui.set_min_width(120.0);
+                                            ui.set_max_width(120.0);
+                                            
+                                            ui.vertical_centered(|ui| {
+                                                ui.horizontal(|ui| {
+                                                    if ui.small_button("×").clicked() {
+                                                        delete_idx = Some(orig_idx);
+                                                    }
+                                                });
+                                                
+                                                let box_size = Vec2::new(100.0, 100.0);
+                                                let (rect, response) = ui.allocate_exact_size(box_size, Sense::click());
+                                                
+                                                let color = Color32::from_rgba_unmultiplied(
+                                                    config.color[0], config.color[1], 
+                                                    config.color[2], config.color[3]
+                                                );
+                                                
+                                                ui.painter().rect_filled(rect, 4.0, color);
+                                                
+                                                let type_name = match config.b_type {
+                                                    BuildingType::Floor => "地面",
+                                                    BuildingType::Wall => "墙壁",
+                                                    BuildingType::Ceiling => "吊顶",
+                                                };
+                                                
+                                                ui.label(&config.name);
+                                                ui.label(type_name);
+                                                ui.label(format!("({},{})", config.grid_index[0], config.grid_index[1]));
+                                                ui.label(format!("{}x{}", config.width, config.height));
+                                                ui.label(format!("费用: {}", config.cost));
+                                                
+                                                if response.clicked() {
+                                                    self.editing_building_idx = Some(orig_idx);
+                                                }
+                                            });
+                                        });
+                                    }
+                                });
+                            }
+                        });
+
+                        ui.add_space(10.0);
+                    }
+                });
+
+                if let Some(idx) = delete_idx {
+                    self.building_configs.remove(idx);
+                }
+            });
+
+            cols[1].vertical(|ui| {
+                ui.separator();
+                
+                if let Some(idx) = self.editing_building_idx {
+                    ui.group(|ui| {
+                        ui.label("编辑建筑:");
+                        let config = &mut self.building_configs[idx];
+                        
+                        ui.label("名称:");
+                        ui.text_edit_singleline(&mut config.name);
+                        
+                        ui.separator();
+                        
+                        ui.label("类型:");
+                        ui.horizontal(|ui| {
+                            ui.radio_value(&mut config.b_type, BuildingType::Floor, "地面");
+                            ui.radio_value(&mut config.b_type, BuildingType::Wall, "墙壁");
+                            ui.radio_value(&mut config.b_type, BuildingType::Ceiling, "吊顶");
+                        });
+                        
+                        ui.separator();
+                        
+                        ui.label("网格位置 (列, 行):");
+                        ui.horizontal(|ui| {
+                            ui.add(egui::DragValue::new(&mut config.grid_index[0]).clamp_range(0..=4));
+                            ui.label(",");
+                            ui.add(egui::DragValue::new(&mut config.grid_index[1]).clamp_range(0..=10));
+                        });
+                        
+                        ui.separator();
+                        
+                        ui.label("尺寸:");
+                        ui.horizontal(|ui| {
+                            ui.label("宽度:");
+                            ui.add(egui::DragValue::new(&mut config.width).clamp_range(1..=10));
+                            ui.label("高度:");
+                            ui.add(egui::DragValue::new(&mut config.height).clamp_range(1..=10));
+                        });
+                        
+                        ui.separator();
+                        
+                        ui.label("费用:");
+                        ui.add(egui::DragValue::new(&mut config.cost).clamp_range(0..=10000));
+                        
+                        ui.separator();
+                        
+                        ui.label("颜色 (RGBA):");
+                        ui.horizontal(|ui| {
+                            ui.label("R:");
+                            ui.add(egui::DragValue::new(&mut config.color[0]).clamp_range(0..=255).speed(1.0));
+                            ui.label("G:");
+                            ui.add(egui::DragValue::new(&mut config.color[1]).clamp_range(0..=255).speed(1.0));
+                            ui.label("B:");
+                            ui.add(egui::DragValue::new(&mut config.color[2]).clamp_range(0..=255).speed(1.0));
+                            ui.label("A:");
+                            ui.add(egui::DragValue::new(&mut config.color[3]).clamp_range(0..=255).speed(1.0));
+                        });
+                        
+                        ui.separator();
+                        
+                        ui.label("图标路径:");
+                        ui.text_edit_singleline(&mut config.icon_path);
+                        
+                        ui.separator();
+                        
+                        ui.horizontal(|ui| {
+                            if ui.button("完成编辑").clicked() {
+                                self.editing_building_idx = None;
+                            }
+                        });
+                    });
+                } else {
+                    ui.vertical_centered(|ui| {
+                        ui.label("点击左侧建筑进行编辑");
+                    });
+                }
+            });
+        });
+    }
+
 }
 
 impl eframe::App for MapEditor {
@@ -319,11 +530,12 @@ impl eframe::App for MapEditor {
                 });
             });
             ui.separator();
-            ui.columns(4, |cols| {
+            ui.columns(5, |cols| {
                 cols[0].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Terrain, "地形"); });
                 cols[1].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Building, "布局"); });
                 cols[2].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Upgrade, "升级"); });
                 cols[3].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Demolish, "拆除"); });
+                cols[4].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::BuildingConfig, "建筑"); });
             });
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
@@ -487,12 +699,17 @@ impl eframe::App for MapEditor {
                     if ui.button("导出策略 JSON").clicked() { self.export_buildings(); }
                     ui.separator();
                     if ui.button("导入地形文件").clicked() { self.import_terrain(); } 
-                    if ui.button("导入策略文件").clicked() { self.import_buildings(); } 
+                    if ui.button("导入策略文件").clicked() { self.import_buildings(); }
                 });
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            if self.mode == EditMode::BuildingConfig {
+                self.show_building_config_ui(ui);
+                return;
+            }
+
             let input = ui.input(|i| i.clone());
             let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
             let panel_rect = response.rect; 
@@ -700,7 +917,6 @@ impl eframe::App for MapEditor {
                 
                 let bg_rect = Rect::from_min_size(info_pos, galley.size() + Vec2::new(10.0, 10.0));
                 painter.rect_filled(bg_rect, 5.0, Color32::from_black_alpha(180));
-                // 修复：添加了第三个参数 fallback_color
                 painter.galley(info_pos + Vec2::new(5.0, 5.0), galley, Color32::WHITE);
             }
         });

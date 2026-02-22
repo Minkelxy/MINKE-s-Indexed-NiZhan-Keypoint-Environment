@@ -1,11 +1,17 @@
 {
   "map_name": "Ni-Zhan_Map",
   "meta": {
-    "grid_pixel_size": 21.3,
+    "grid_pixel_width": 21.3,
+    "grid_pixel_height": 21.3,
     "offset_x": 144.0,
     "offset_y": 179.0,
     "bottom": 1992.0,
-    "prep_actions": [
+    "right": 1920.0,
+    "camera_speed_up": 300.0,
+    "camera_speed_down": 300.0,
+    "camera_speed_left": 300.0,
+    "camera_speed_right": 300.0,
+        "prep_actions": [
       { "type": "Log", "msg": "开始助跑..." },
       { "type": "KeyDown", "key": "w" },
       { "type": "Wait", "ms": 1000 },

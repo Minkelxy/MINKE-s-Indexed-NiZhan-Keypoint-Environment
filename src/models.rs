@@ -205,15 +205,17 @@ pub struct MapBuildingsExport {
     pub demolishes: Vec<DemolishEvent>, 
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct BuildingConfig {
     pub name: String,
     #[serde(default = "default_building_type")]
     pub b_type: BuildingType,
+    pub grid_index: [usize; 2],
     pub width: usize,
     pub height: usize,
     pub color: [u8; 4],
     pub icon_path: String,
+    pub cost: i32,
 }
 
 #[derive(Deserialize, Clone)]
@@ -248,4 +250,4 @@ pub struct PlacedBuilding {
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub enum EditMode { Terrain, Building, Upgrade, Demolish }
+pub enum EditMode { Terrain, Building, Upgrade, Demolish, BuildingConfig }
