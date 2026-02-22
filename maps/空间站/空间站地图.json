@@ -10,7 +10,15 @@
     "camera_speed_up": 300.0,
     "camera_speed_down": 300.0,
     "camera_speed_left": 300.0,
-    "camera_speed_right": 300.0
+    "camera_speed_right": 300.0,
+    "viewport_safe_areas": [
+      {
+        "min_x": 0.0,
+        "min_y": 0.0,
+        "max_x": 1920.0,
+        "max_y": 1992.0
+      }
+    ]
   },
   "layers": [
     {
