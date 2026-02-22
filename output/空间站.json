@@ -1,10 +1,16 @@
 {
   "map_name": "Ni-Zhan_Map",
   "meta": {
-    "grid_pixel_size": 21.3,
+    "grid_pixel_width": 21.3,
+    "grid_pixel_height": 21.3,
     "offset_x": 144.0,
     "offset_y": 179.0,
-    "bottom": 1992.0
+    "bottom": 1992.0,
+    "right": 1920.0,
+    "camera_speed_up": 1.0,
+    "camera_speed_down": 1.0,
+    "camera_speed_left": 1.0,
+    "camera_speed_right": 1.0
   },
   "layers": [
     {

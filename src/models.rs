@@ -1,13 +1,96 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 use eframe::egui::{Color32, TextureHandle};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct MapMeta {
-    pub grid_pixel_size: f32,
+    pub grid_pixel_width: f32,
+    pub grid_pixel_height: f32,
     pub offset_x: f32,
     pub offset_y: f32,
     #[serde(default)]
     pub bottom: f32,
+    #[serde(default)]
+    pub right: f32,
+    #[serde(default)]
+    pub camera_speed_up: f32,
+    #[serde(default)]
+    pub camera_speed_down: f32,
+    #[serde(default)]
+    pub camera_speed_left: f32,
+    #[serde(default)]
+    pub camera_speed_right: f32,
+}
+
+#[derive(Deserialize)]
+#[serde(default)]
+struct MapMetaLegacy {
+    grid_pixel_size: Option<f32>,
+    grid_pixel_width: Option<f32>,
+    grid_pixel_height: Option<f32>,
+    offset_x: Option<f32>,
+    offset_y: Option<f32>,
+    bottom: Option<f32>,
+    right: Option<f32>,
+    camera_speed_up: Option<f32>,
+    camera_speed_down: Option<f32>,
+    camera_speed_left: Option<f32>,
+    camera_speed_right: Option<f32>,
+}
+
+impl Default for MapMetaLegacy {
+    fn default() -> Self {
+        Self {
+            grid_pixel_size: None,
+            grid_pixel_width: None,
+            grid_pixel_height: None,
+            offset_x: None,
+            offset_y: None,
+            bottom: None,
+            right: None,
+            camera_speed_up: None,
+            camera_speed_down: None,
+            camera_speed_left: None,
+            camera_speed_right: None,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for MapMeta {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let legacy = MapMetaLegacy::deserialize(deserializer)?;
+        
+        let grid_pixel_width = if let Some(width) = legacy.grid_pixel_width {
+            width
+        } else if let Some(size) = legacy.grid_pixel_size {
+            size
+        } else {
+            32.0
+        };
+        
+        let grid_pixel_height = if let Some(height) = legacy.grid_pixel_height {
+            height
+        } else if let Some(size) = legacy.grid_pixel_size {
+            size
+        } else {
+            32.0
+        };
+        
+        Ok(MapMeta {
+            grid_pixel_width,
+            grid_pixel_height,
+            offset_x: legacy.offset_x.unwrap_or(0.0),
+            offset_y: legacy.offset_y.unwrap_or(0.0),
+            bottom: legacy.bottom.unwrap_or(0.0),
+            right: legacy.right.unwrap_or(0.0),
+            camera_speed_up: legacy.camera_speed_up.unwrap_or(1.0),
+            camera_speed_down: legacy.camera_speed_down.unwrap_or(1.0),
+            camera_speed_left: legacy.camera_speed_left.unwrap_or(1.0),
+            camera_speed_right: legacy.camera_speed_right.unwrap_or(1.0),
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug, Hash, Eq)]

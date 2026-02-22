@@ -10,10 +10,16 @@ use crate::utils::*;
 
 pub struct MapEditor {
     pub(crate) texture: Option<TextureHandle>,
-    pub(crate) grid_size: f32,
+    pub(crate) grid_width: f32,
+    pub(crate) grid_height: f32,
     pub(crate) offset_x: f32,
     pub(crate) offset_y: f32,
     pub(crate) map_bottom: f32,
+    pub(crate) map_right: f32,
+    pub(crate) camera_speed_up: f32,
+    pub(crate) camera_speed_down: f32,
+    pub(crate) camera_speed_left: f32,
+    pub(crate) camera_speed_right: f32,
     pub(crate) grid_rows: usize,
     pub(crate) grid_cols: usize,
     pub(crate) current_major_z: i32,
@@ -77,8 +83,9 @@ impl MapEditor {
         }
 
         let mut editor = Self {
-            texture: None, grid_size: 32.0, offset_x: 0.0, offset_y: 0.0, 
-            map_bottom: 1080.0,
+            texture: None, grid_width: 32.0, grid_height: 32.0, offset_x: 0.0, offset_y: 0.0, 
+            map_bottom: 1080.0, map_right: 1920.0,
+            camera_speed_up: 1.0, camera_speed_down: 1.0, camera_speed_left: 1.0, camera_speed_right: 1.0,
             grid_rows: 40, grid_cols: 40, current_major_z: 0,
             layers_data: HashMap::new(), 
             current_edit_layer_type: BuildingType::Floor,
@@ -118,8 +125,13 @@ impl MapEditor {
         }
         if let Ok(content) = fs::read_to_string(&terrain_p) {
             if let Ok(data) = serde_json::from_str::<MapTerrainExport>(&content) {
-                self.grid_size = data.meta.grid_pixel_size; self.offset_x = data.meta.offset_x; self.offset_y = data.meta.offset_y;
+                self.grid_width = data.meta.grid_pixel_width; self.grid_height = data.meta.grid_pixel_height; self.offset_x = data.meta.offset_x; self.offset_y = data.meta.offset_y;
                 if data.meta.bottom > 0.0 { self.map_bottom = data.meta.bottom; }
+                if data.meta.right > 0.0 { self.map_right = data.meta.right; }
+                self.camera_speed_up = data.meta.camera_speed_up;
+                self.camera_speed_down = data.meta.camera_speed_down;
+                self.camera_speed_left = data.meta.camera_speed_left;
+                self.camera_speed_right = data.meta.camera_speed_right;
                 self.layers_data.clear();
                 for mut layer in data.layers {
                     layer.normalize();
@@ -210,8 +222,13 @@ impl MapEditor {
         if let Some(path) = FileDialog::new().set_directory("output").add_filter("JSON地形", &["json"]).pick_file() {
             if let Ok(content) = fs::read_to_string(path) {
                 if let Ok(data) = serde_json::from_str::<MapTerrainExport>(&content) {
-                    self.grid_size = data.meta.grid_pixel_size; self.offset_x = data.meta.offset_x; self.offset_y = data.meta.offset_y;
+                    self.grid_width = data.meta.grid_pixel_width; self.grid_height = data.meta.grid_pixel_height; self.offset_x = data.meta.offset_x; self.offset_y = data.meta.offset_y;
                     if data.meta.bottom > 0.0 { self.map_bottom = data.meta.bottom; }
+                    if data.meta.right > 0.0 { self.map_right = data.meta.right; }
+                    self.camera_speed_up = data.meta.camera_speed_up;
+                    self.camera_speed_down = data.meta.camera_speed_down;
+                    self.camera_speed_left = data.meta.camera_speed_left;
+                    self.camera_speed_right = data.meta.camera_speed_right;
                     self.layers_data.clear();
                     for mut layer in data.layers {
                         layer.normalize();
@@ -253,7 +270,18 @@ impl MapEditor {
     fn export_terrain(&self) {
         let _ = fs::create_dir_all("output");
         let out = PathBuf::from("output").join(&self.map_filename);
-        let meta = MapMeta { grid_pixel_size: self.grid_size, offset_x: self.offset_x, offset_y: self.offset_y, bottom: self.map_bottom };
+        let meta = MapMeta { 
+            grid_pixel_width: self.grid_width, 
+            grid_pixel_height: self.grid_height, 
+            offset_x: self.offset_x, 
+            offset_y: self.offset_y, 
+            bottom: self.map_bottom, 
+            right: self.map_right,
+            camera_speed_up: self.camera_speed_up,
+            camera_speed_down: self.camera_speed_down,
+            camera_speed_left: self.camera_speed_left,
+            camera_speed_right: self.camera_speed_right,
+        };
         let mut layers: Vec<LayerData> = self.layers_data.values().cloned().collect();
         layers.sort_by_key(|l| l.major_z);
         if let Ok(json) = serde_json::to_string_pretty(&MapTerrainExport { map_name: "Ni-Zhan_Map".into(), meta, layers }) { let _ = fs::write(out, json); }
@@ -414,13 +442,18 @@ impl eframe::App for MapEditor {
             ui.add_space(10.0);
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
-                ui.horizontal(|ui| { ui.label("格子大小:"); ui.add(egui::DragValue::new(&mut self.grid_size).speed(0.1)); });
+                ui.label("网格设置:");
+                ui.horizontal(|ui| { 
+                    ui.label("宽度:"); ui.add(egui::DragValue::new(&mut self.grid_width).speed(0.1)); 
+                    ui.label("高度:"); ui.add(egui::DragValue::new(&mut self.grid_height).speed(0.1)); 
+                });
                 ui.horizontal(|ui| {
                     ui.label("偏移 X:"); ui.add(egui::DragValue::new(&mut self.offset_x).speed(1.0));
                     ui.label("偏移 Y:"); ui.add(egui::DragValue::new(&mut self.offset_y).speed(1.0));
                 });
                 ui.horizontal(|ui| {
                     ui.label("底图高度:"); ui.add(egui::DragValue::new(&mut self.map_bottom).speed(1.0));
+                    ui.label("底图宽度:"); ui.add(egui::DragValue::new(&mut self.map_right).speed(1.0));
                 });
                 ui.horizontal(|ui| {
                     ui.label("网格行列:");
@@ -428,6 +461,20 @@ impl eframe::App for MapEditor {
                     if ui.add(egui::DragValue::new(&mut self.grid_cols)).changed() { self.resize_grids(); }
                 });
                 ui.vertical_centered_justified(|ui| { if ui.button("加载自定义地图底图").clicked() { self.pick_and_load_image(ctx); } });
+            });
+
+            ui.add_space(10.0);
+            ui.group(|ui| {
+                ui.set_min_width(ui.available_width());
+                ui.label("镜头移动速度:");
+                ui.horizontal(|ui| {
+                    ui.label("上:"); ui.add(egui::DragValue::new(&mut self.camera_speed_up).speed(0.1));
+                    ui.label("下:"); ui.add(egui::DragValue::new(&mut self.camera_speed_down).speed(0.1));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("左:"); ui.add(egui::DragValue::new(&mut self.camera_speed_left).speed(0.1));
+                    ui.label("右:"); ui.add(egui::DragValue::new(&mut self.camera_speed_right).speed(0.1));
+                });
             });
 
             ui.group(|ui| {
@@ -459,7 +506,8 @@ impl eframe::App for MapEditor {
             }
 
             let origin = panel_rect.min + self.pan + Vec2::new(self.offset_x * self.zoom, self.offset_y * self.zoom);
-            let z_grid = self.grid_size * self.zoom;
+            let z_grid_width = self.grid_width * self.zoom;
+            let z_grid_height = self.grid_height * self.zoom;
 
             if let Some(tex) = &self.texture {
                 painter.image(tex.id(), Rect::from_min_size(panel_rect.min + self.pan, tex.size_vec2() * self.zoom), Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
@@ -473,7 +521,7 @@ impl eframe::App for MapEditor {
                         let val = grid[r][c];
                         if val < -1 { continue; } 
 
-                        let rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid, r as f32 * z_grid), Vec2::splat(z_grid)).shrink(0.5);
+                        let rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid_width, r as f32 * z_grid_height), Vec2::new(z_grid_width, z_grid_height)).shrink(0.5);
                         
                         if panel_rect.intersects(rect) { 
                             let mut color = get_layer_color(val); 
@@ -515,7 +563,7 @@ impl eframe::App for MapEditor {
                 let t_create = get_time_value(b.wave_num, b.is_late);
                 let t_demolish = self.get_building_demolish_time(b.uid);
                 let alpha_mult = if t_current >= t_demolish { 0.05 } else if t_current < t_create { 0.3 } else { 1.0 };
-                let rect = Rect::from_min_size(origin + Vec2::new(b.grid_x as f32 * z_grid, b.grid_y as f32 * z_grid), Vec2::new(b.width as f32 * z_grid, b.height as f32 * z_grid));
+                let rect = Rect::from_min_size(origin + Vec2::new(b.grid_x as f32 * z_grid_width, b.grid_y as f32 * z_grid_height), Vec2::new(b.width as f32 * z_grid_width, b.height as f32 * z_grid_height));
                 
                 let temp = self.building_templates.iter().find(|t| t.name == b.template_name);
                 if let Some(t) = temp {
@@ -555,14 +603,14 @@ impl eframe::App for MapEditor {
             if response.hovered() {
                 if let Some(pos) = input.pointer.hover_pos() {
                     let rel = pos - origin; 
-                    let (cx, ry) = ((rel.x / z_grid).floor() as i32, (rel.y / z_grid).floor() as i32);
+                    let (cx, ry) = ((rel.x / z_grid_width).floor() as i32, (rel.y / z_grid_height).floor() as i32);
                     
                     if cx >= 0 && ry >= 0 && (cx as usize) < self.grid_cols && (ry as usize) < self.grid_rows {
                         let current_grid = layer.get_grid(self.current_edit_layer_type);
                         let terrain_h = current_grid[ry as usize][cx as usize];
                         
-                        let px_x = cx as f32 * self.grid_size;
-                        let px_y = ry as f32 * self.grid_size;
+                        let px_x = cx as f32 * self.grid_width;
+                        let px_y = ry as f32 * self.grid_height;
                         
                         self.hover_info = format!("Grid: ({}, {})\nPixel: ({:.1}, {:.1})\n层级: {:?}\nID: {}", cx, ry, px_x, px_y, self.current_edit_layer_type, terrain_h);
 
@@ -603,9 +651,9 @@ impl eframe::App for MapEditor {
                         }
                     } else if self.mode == EditMode::Building {
                         let t = &self.building_templates[self.selected_building_idx];
-                        let c = ((rel.x / z_grid) - (t.width as f32 / 2.0)).round() as i32;
-                        let r = ((rel.y / z_grid) - (t.height as f32 / 2.0)).round() as i32;
-                        let ghost_rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid, r as f32 * z_grid), Vec2::new(t.width as f32 * z_grid, t.height as f32 * z_grid));
+                        let c = ((rel.x / z_grid_width) - (t.width as f32 / 2.0)).round() as i32;
+                        let r = ((rel.y / z_grid_height) - (t.height as f32 / 2.0)).round() as i32;
+                        let ghost_rect = Rect::from_min_size(origin + Vec2::new(c as f32 * z_grid_width, r as f32 * z_grid_height), Vec2::new(t.width as f32 * z_grid_width, t.height as f32 * z_grid_height));
                         
                         let is_valid = r >= 0 && c >= 0 && self.can_place_building(r as usize, c as usize, t.width, t.height, t.b_type);
                         
@@ -634,7 +682,7 @@ impl eframe::App for MapEditor {
                             t_current >= get_time_value(b.wave_num, b.is_late) && t_current < self.get_building_demolish_time(b.uid)
                         });
                         if let Some(b) = target {
-                            let r = Rect::from_min_size(origin + Vec2::new(b.grid_x as f32 * z_grid, b.grid_y as f32 * z_grid), Vec2::new(b.width as f32 * z_grid, b.height as f32 * z_grid));
+                            let r = Rect::from_min_size(origin + Vec2::new(b.grid_x as f32 * z_grid_width, b.grid_y as f32 * z_grid_height), Vec2::new(b.width as f32 * z_grid_width, b.height as f32 * z_grid_height));
                             painter.rect_stroke(r, 0.0, Stroke::new(3.0, Color32::YELLOW));
                             if response.clicked_by(egui::PointerButton::Primary) && !self.demolish_events.iter().any(|e| e.uid == b.uid) {
                                 self.demolish_events.push(DemolishEvent { uid: b.uid, name: b.template_name.clone(), grid_x: b.grid_x, grid_y: b.grid_y, width: b.width, height: b.height, wave_num: self.current_wave_num, is_late: self.current_is_late });
