@@ -18,6 +18,21 @@
         "max_x": 1920.0,
         "max_y": 1992.0
       }
+    ],
+    "prep_actions": [
+      { "type": "Log", "msg": "开始助跑..." },
+      { "type": "KeyDown", "key": "w" },
+      { "type": "Wait", "ms": 1000 },
+      { "type": "KeyDown", "key": " " },
+      { "type": "Wait", "ms": 100 },
+      { "type": "KeyUpAll" },
+      { "type": "Log", "msg": "第一轮跳跃完成，执行补救..." },
+      { "type": "Wait", "ms": 200 },
+      { "type": "KeyDown", "key": "w" },
+      { "type": "Wait", "ms": 200 },
+      { "type": "KeyDown", "key": " " },
+      { "type": "Wait", "ms": 100 },
+      { "type": "KeyUpAll" }
     ]
   },
   "layers": [
