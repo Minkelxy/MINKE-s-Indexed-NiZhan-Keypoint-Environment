@@ -29,6 +29,27 @@ impl From<SafeArea> for Rect {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(tag = "type")]
+pub enum PrepAction {
+    #[serde(rename = "Log")]
+    Log { msg: String },
+    #[serde(rename = "KeyDown")]
+    KeyDown { key: String },
+    #[serde(rename = "KeyUp")]
+    KeyUp { key: String },
+    #[serde(rename = "Wait")]
+    Wait { ms: u64 },
+    #[serde(rename = "KeyUpAll")]
+    KeyUpAll,
+}
+
+impl Default for PrepAction {
+    fn default() -> Self {
+        PrepAction::Log { msg: String::new() }
+    }
+}
+
 #[derive(Serialize, Clone)]
 pub struct MapMeta {
     pub grid_pixel_width: f32,
@@ -49,6 +70,8 @@ pub struct MapMeta {
     pub camera_speed_right: f32,
     #[serde(default)]
     pub viewport_safe_areas: Vec<SafeArea>,
+    #[serde(default)]
+    pub prep_actions: Vec<PrepAction>,
 }
 
 #[derive(Deserialize)]
@@ -66,6 +89,7 @@ struct MapMetaLegacy {
     camera_speed_left: Option<f32>,
     camera_speed_right: Option<f32>,
     viewport_safe_areas: Option<Vec<SafeArea>>,
+    prep_actions: Option<Vec<PrepAction>>,
 }
 
 impl Default for MapMetaLegacy {
@@ -83,6 +107,7 @@ impl Default for MapMetaLegacy {
             camera_speed_left: None,
             camera_speed_right: None,
             viewport_safe_areas: None,
+            prep_actions: None,
         }
     }
 }
@@ -122,6 +147,7 @@ impl<'de> Deserialize<'de> for MapMeta {
             camera_speed_left: legacy.camera_speed_left.unwrap_or(1.0),
             camera_speed_right: legacy.camera_speed_right.unwrap_or(1.0),
             viewport_safe_areas: legacy.viewport_safe_areas.unwrap_or_default(),
+            prep_actions: legacy.prep_actions.unwrap_or_default(),
         })
     }
 }
@@ -285,4 +311,4 @@ pub struct PlacedBuilding {
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub enum EditMode { Terrain, Building, Upgrade, Demolish, BuildingConfig }
+pub enum EditMode { Terrain, Building, Upgrade, Demolish, BuildingConfig, PrepActions }

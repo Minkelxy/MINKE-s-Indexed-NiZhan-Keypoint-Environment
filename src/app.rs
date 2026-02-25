@@ -49,22 +49,23 @@ pub struct MapEditor {
     pub(crate) viewport_width: f32,
     pub(crate) viewport_height: f32,
     pub(crate) viewport_safe_areas: Vec<Rect>,
+    pub(crate) prep_actions: Vec<PrepAction>,
 }
 
 impl MapEditor {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let load_icon = |ctx: &egui::Context, path: &str| -> Option<TextureHandle> {
-            let full_path = fix_path(path);
-            if let Ok(img_reader) = ImageReader::open(&full_path) {
-                if let Ok(img) = img_reader.decode() {
-                    let size = [img.width() as _, img.height() as _];
-                    let color_image = egui::ColorImage::from_rgba_unmultiplied(size, img.to_rgba8().as_flat_samples().as_slice());
-                    return Some(ctx.load_texture(&full_path, color_image, Default::default()));
-                }
+    fn load_icon(ctx: &egui::Context, path: &str) -> Option<TextureHandle> {
+        let full_path = fix_path(path);
+        if let Ok(img_reader) = ImageReader::open(&full_path) {
+            if let Ok(img) = img_reader.decode() {
+                let size = [img.width() as _, img.height() as _];
+                let color_image = egui::ColorImage::from_rgba_unmultiplied(size, img.to_rgba8().as_flat_samples().as_slice());
+                return Some(ctx.load_texture(&full_path, color_image, Default::default()));
             }
-            None
-        };
+        }
+        None
+    }
 
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let mut b_templates = Vec::new();
         let mut b_configs = Vec::new();
         let mut b_config_icons = Vec::new();
@@ -72,7 +73,7 @@ impl MapEditor {
             if let Ok(configs) = serde_json::from_str::<Vec<BuildingConfig>>(&config_str) {
                 b_configs = configs.clone();
                 for cfg in configs {
-                    let icon = load_icon(&cc.egui_ctx, &cfg.icon_path);
+                    let icon = Self::load_icon(&cc.egui_ctx, &cfg.icon_path);
                     b_templates.push(BuildingTemplate {
                         name: cfg.name,
                         b_type: cfg.b_type,
@@ -116,6 +117,7 @@ impl MapEditor {
             viewport_width: 1920.0,
             viewport_height: 1080.0,
             viewport_safe_areas: Vec::new(),
+            prep_actions: Vec::new(),
         };
 
         let default_grid = vec![vec![-1; 40]; 40];
@@ -154,6 +156,8 @@ impl MapEditor {
                 self.camera_speed_down = data.meta.camera_speed_down;
                 self.camera_speed_left = data.meta.camera_speed_left;
                 self.camera_speed_right = data.meta.camera_speed_right;
+                self.viewport_safe_areas = data.meta.viewport_safe_areas.iter().map(|a| (*a).into()).collect();
+                self.prep_actions = data.meta.prep_actions;
                 self.layers_data.clear();
                 for mut layer in data.layers {
                     layer.normalize();
@@ -172,8 +176,10 @@ impl MapEditor {
         if let Ok(content) = fs::read_to_string(&building_configs_p) {
             if let Ok(data) = serde_json::from_str::<Vec<BuildingConfig>>(&content) {
                 self.building_configs = data;
-                // 更新建筑模板
+                self.building_config_icons.clear();
                 self.building_templates = self.building_configs.iter().map(|config| {
+                    let icon = Self::load_icon(ctx, &config.icon_path);
+                    self.building_config_icons.push(icon.clone());
                     BuildingTemplate {
                         name: config.name.clone(),
                         b_type: config.b_type,
@@ -183,7 +189,7 @@ impl MapEditor {
                             config.color[0], config.color[1], 
                             config.color[2], config.color[3]
                         ),
-                        icon: None, // 图标需要重新加载
+                        icon,
                     }
                 }).collect();
             }
@@ -293,6 +299,7 @@ impl MapEditor {
                     self.camera_speed_left = data.meta.camera_speed_left;
                     self.camera_speed_right = data.meta.camera_speed_right;
                     self.viewport_safe_areas = data.meta.viewport_safe_areas.iter().map(|a| (*a).into()).collect();
+                    self.prep_actions = data.meta.prep_actions;
                     self.layers_data.clear();
                     for mut layer in data.layers {
                         layer.normalize();
@@ -331,13 +338,15 @@ impl MapEditor {
         }
     }
 
-    fn import_building_configs(&mut self) {
+    fn import_building_configs(&mut self, ctx: &egui::Context) {
         if let Some(path) = FileDialog::new().set_directory("output").add_filter("JSON防御塔列表", &["json"]).pick_file() {
             if let Ok(content) = fs::read_to_string(path) {
                 if let Ok(data) = serde_json::from_str::<Vec<BuildingConfig>>(&content) {
                     self.building_configs = data;
-                    // 更新建筑模板
+                    self.building_config_icons.clear();
                     self.building_templates = self.building_configs.iter().map(|config| {
+                        let icon = Self::load_icon(ctx, &config.icon_path);
+                        self.building_config_icons.push(icon.clone());
                         BuildingTemplate {
                             name: config.name.clone(),
                             b_type: config.b_type,
@@ -347,7 +356,7 @@ impl MapEditor {
                                 config.color[0], config.color[1], 
                                 config.color[2], config.color[3]
                             ),
-                            icon: None, // 图标需要重新加载
+                            icon,
                         }
                     }).collect();
                 }
@@ -373,6 +382,7 @@ impl MapEditor {
             camera_speed_left: self.camera_speed_left,
             camera_speed_right: self.camera_speed_right,
             viewport_safe_areas: self.viewport_safe_areas.iter().map(|r| (*r).into()).collect(),
+            prep_actions: self.prep_actions.clone(),
         };
         let mut layers: Vec<LayerData> = self.layers_data.values().cloned().collect();
         layers.sort_by_key(|l| l.major_z);
@@ -532,12 +542,13 @@ impl eframe::App for MapEditor {
             // 侧边栏移除了 "当前状态监视"，改为悬浮绘制
 
             ui.separator();
-            ui.columns(5, |cols| {
+            ui.columns(6, |cols| {
                 cols[0].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Terrain, "地形"); });
                 cols[1].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Building, "布局"); });
                 cols[2].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Upgrade, "升级"); });
                 cols[3].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::Demolish, "拆除"); });
                 cols[4].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::BuildingConfig, "建筑"); });
+                cols[5].vertical_centered_justified(|ui| { ui.selectable_value(&mut self.mode, EditMode::PrepActions, "准备"); });
             });
 
             if self.mode == EditMode::Terrain {
@@ -655,7 +666,7 @@ impl eframe::App for MapEditor {
                         }
                         if ui.button("导入地形文件").clicked() { self.import_terrain(); }
                         if ui.button("导入策略文件").clicked() { self.import_buildings(); }
-                        if ui.button("导入防御塔列表").clicked() { self.import_building_configs(); }
+                        if ui.button("导入防御塔列表").clicked() { self.import_building_configs(ctx); }
                     });
                 });
 
@@ -821,6 +832,99 @@ impl eframe::App for MapEditor {
                         ui.label("点击右侧建筑卡片进行编辑");
                     }
                 });
+            } else if self.mode == EditMode::PrepActions {
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.label("准备动作序列:");
+                    ui.label("在地图加载前执行的键盘操作序列");
+                    ui.separator();
+                    
+                    ui.horizontal(|ui| {
+                        if ui.button("添加 Log").clicked() {
+                            self.prep_actions.push(PrepAction::Log { msg: String::new() });
+                        }
+                        if ui.button("添加 KeyDown").clicked() {
+                            self.prep_actions.push(PrepAction::KeyDown { key: String::new() });
+                        }
+                        if ui.button("添加 KeyUp").clicked() {
+                            self.prep_actions.push(PrepAction::KeyUp { key: String::new() });
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        if ui.button("添加 Wait").clicked() {
+                            self.prep_actions.push(PrepAction::Wait { ms: 100 });
+                        }
+                        if ui.button("添加 KeyUpAll").clicked() {
+                            self.prep_actions.push(PrepAction::KeyUpAll);
+                        }
+                    });
+                });
+                
+                ui.separator();
+                
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.label("动作列表:");
+                    
+                    let mut delete_idx = None;
+                    let mut move_up_idx = None;
+                    let mut move_down_idx = None;
+                    let actions_count = self.prep_actions.len();
+                    
+                    egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+                        if self.prep_actions.is_empty() {
+                            ui.label("暂无准备动作");
+                        }
+                        for i in 0..actions_count {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{}.", i + 1));
+                                
+                                match &mut self.prep_actions[i] {
+                                    PrepAction::Log { msg } => {
+                                        ui.label("Log:");
+                                        ui.text_edit_singleline(msg);
+                                    }
+                                    PrepAction::KeyDown { key } => {
+                                        ui.label("KeyDown:");
+                                        ui.add(egui::TextEdit::singleline(key).desired_width(40.0));
+                                    }
+                                    PrepAction::KeyUp { key } => {
+                                        ui.label("KeyUp:");
+                                        ui.add(egui::TextEdit::singleline(key).desired_width(40.0));
+                                    }
+                                    PrepAction::Wait { ms } => {
+                                        ui.label("Wait:");
+                                        ui.add(egui::DragValue::new(ms).speed(10.0));
+                                        ui.label("ms");
+                                    }
+                                    PrepAction::KeyUpAll => {
+                                        ui.label("KeyUpAll");
+                                    }
+                                }
+                                
+                                if ui.small_button("↑").clicked() && i > 0 {
+                                    move_up_idx = Some(i);
+                                }
+                                if ui.small_button("↓").clicked() && i < actions_count - 1 {
+                                    move_down_idx = Some(i);
+                                }
+                                if ui.small_button("×").clicked() {
+                                    delete_idx = Some(i);
+                                }
+                            });
+                        }
+                    });
+                    
+                    if let Some(idx) = delete_idx {
+                        self.prep_actions.remove(idx);
+                    }
+                    if let Some(idx) = move_up_idx {
+                        self.prep_actions.swap(idx, idx - 1);
+                    }
+                    if let Some(idx) = move_down_idx {
+                        self.prep_actions.swap(idx, idx + 1);
+                    }
+                });
             }
         });
 
@@ -890,6 +994,20 @@ impl eframe::App for MapEditor {
                     ui.label("• 左侧：建筑列表");
                     ui.label("• 右侧：编辑建筑信息");
                     ui.label("• 点击卡片编辑建筑");
+                }
+                EditMode::PrepActions => {
+                    ui.label("【准备动作模式】");
+                    ui.label("• 配置地图加载前的键盘操作");
+                    ui.label("• Log: 输出日志信息");
+                    ui.label("• KeyDown: 按下按键");
+                    ui.label("• KeyUp: 释放按键");
+                    ui.label("• Wait: 等待指定毫秒");
+                    ui.label("• KeyUpAll: 释放所有按键");
+                    ui.separator();
+                    ui.label("【操作说明】");
+                    ui.label("• 点击按钮添加动作");
+                    ui.label("• 使用↑↓调整顺序");
+                    ui.label("• 点击×删除动作");
                 }
             }
         });

@@ -14,7 +14,7 @@
       180,
       255
     ],
-    "icon_path": "maps/icons/小型弹板陷阱.png",
+    "icon_path": "maps/icons/小型弹板陷阱.webp",
     "cost": 400
   },
   {
@@ -32,7 +32,7 @@
       160,
       255
     ],
-    "icon_path": "maps/icons/巨型弹板陷阱.png",
+    "icon_path": "maps/icons/巨型弹板陷阱.webp",
     "cost": 3000
   },
   {
@@ -50,7 +50,7 @@
       255,
       255
     ],
-    "icon_path": "maps/icons/减速陷阱.png",
+    "icon_path": "maps/icons/减速陷阱.webp",
     "cost": 400
   },
   {
@@ -68,7 +68,7 @@
       130,
       255
     ],
-    "icon_path": "maps/icons/突刺陷阱.png",
+    "icon_path": "maps/icons/突刺陷阱.webp",
     "cost": 600
   },
   {
@@ -86,7 +86,7 @@
       255,
       255
     ],
-    "icon_path": "maps/icons/防空导弹.png",
+    "icon_path": "maps/icons/防空导弹.webp",
     "cost": 600
   },
   {
@@ -104,7 +104,7 @@
       120,
       255
     ],
-    "icon_path": "maps/icons/自修复磁暴塔.png",
+    "icon_path": "maps/icons/自修复磁暴塔.webp",
     "cost": 2500
   },
   {
@@ -122,7 +122,7 @@
       60,
       255
     ],
-    "icon_path": "maps/icons/破坏者.png",
+    "icon_path": "maps/icons/破坏者.webp",
     "cost": 2500
   },
   {
@@ -140,7 +140,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/修理站.png",
+    "icon_path": "maps/icons/修理站.webp",
     "cost": 800
   },
   {
@@ -158,7 +158,7 @@
       80,
       255
     ],
-    "icon_path": "maps/icons/岗哨机枪.png",
+    "icon_path": "maps/icons/岗哨机枪.webp",
     "cost": 1000
   },
   {
@@ -176,7 +176,7 @@
       180,
       255
     ],
-    "icon_path": "maps/icons/诱捕陷阱.png",
+    "icon_path": "maps/icons/诱捕陷阱.webp",
     "cost": 800
   },
   {
@@ -194,7 +194,7 @@
       255,
       255
     ],
-    "icon_path": "maps/icons/电击陷阱.png",
+    "icon_path": "maps/icons/电击陷阱.webp",
     "cost": 400
   },
   {
@@ -212,7 +212,7 @@
       80,
       255
     ],
-    "icon_path": "maps/icons/毒刺陷阱.png",
+    "icon_path": "maps/icons/毒刺陷阱.webp",
     "cost": 600
   },
   {
@@ -230,7 +230,7 @@
       40,
       255
     ],
-    "icon_path": "maps/icons/战防炮.png",
+    "icon_path": "maps/icons/战防炮.webp",
     "cost": 1000
   },
   {
@@ -248,7 +248,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/歼灭者.png",
+    "icon_path": "maps/icons/歼灭者.webp",
     "cost": 2500
   },
   {
@@ -266,7 +266,7 @@
       180,
       255
     ],
-    "icon_path": "maps/icons/天启陷阱.png",
+    "icon_path": "maps/icons/天启陷阱.webp",
     "cost": 2500
   },
   {
@@ -284,7 +284,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/智能枪塔.png",
+    "icon_path": "maps/icons/智能枪塔.webp",
     "cost": 2500
   },
   {
@@ -302,7 +302,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/火焰发射器.png",
+    "icon_path": "maps/icons/火焰发射器.webp",
     "cost": 800
   },
   {
@@ -320,7 +320,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/激光发射器.png",
+    "icon_path": "maps/icons/激光发射器.webp",
     "cost": 800
   },
   {
@@ -338,7 +338,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/天网陷阱.png",
+    "icon_path": "maps/icons/天网陷阱.webp",
     "cost": 1100
   },
   {
@@ -356,7 +356,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/狂风陷阱.png",
+    "icon_path": "maps/icons/狂风陷阱.webp",
     "cost": 600
   },
   {
@@ -374,7 +374,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/高能激光.png",
+    "icon_path": "maps/icons/高能激光.webp",
     "cost": 2000
   },
   {
@@ -392,7 +392,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/聚能炮.png",
+    "icon_path": "maps/icons/聚能炮.webp",
     "cost": 1500
   },
   {
@@ -410,7 +410,7 @@
       100,
       255
     ],
-    "icon_path": "maps/icons/暴风之眼.png",
+    "icon_path": "maps/icons/暴风之眼.webp",
     "cost": 1500
   }
 ]
